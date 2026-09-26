@@ -32,8 +32,16 @@ export const registerTeacher = async (req, res) => {
       password: hashedPassword
     });
 
+    // 5. Generate token for instant login
+    const token = jwt.sign(
+      { id: teacher._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     res.status(201).json({
       message: "Teacher registered successfully",
+      token,
       teacher: {
         id: teacher._id,
         name: teacher.name,

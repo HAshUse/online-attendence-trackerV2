@@ -97,6 +97,24 @@ function ClassAttendance() {
     }
   };
 
+  const [exportingSheet, setExportingSheet] = useState(false);
+
+  const handleExportGoogleSheet = async () => {
+    try {
+      setExportingSheet(true);
+      const res = await API.post(`/attendance/export-google-sheet/${id}`);
+      if (res.data?.sheetUrl) {
+        window.open(res.data.sheetUrl, "_blank");
+      } else {
+        alert("Google Sheet generated successfully!");
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to export to Google Sheets. Please ensure your Google Account is connected.");
+    } finally {
+      setExportingSheet(false);
+    }
+  };
+
   /* ================= UI ================= */
 
   if (loading) return <div className="loading">Loading attendance...</div>;
@@ -108,19 +126,31 @@ function ClassAttendance() {
 
       {/* TOP ACTIONS */}
       <div className="card">
-        <button className="btn" onClick={() => navigate(-1)}>
-          ← Back to Dashboard
-        </button>
+        {/* Row 1: Back + Download Full + Google Sheet */}
+        <div className="action-row">
+          <button className="btn" onClick={() => navigate(-1)}>
+            ← Back to Dashboard
+          </button>
 
-        <button className="btn" style={{ marginLeft: 10 }} onClick={handleExportAll}>
-          Download Full Report
-        </button>
+          <button className="btn" onClick={handleExportAll}>
+            📥 Download Excel
+          </button>
 
-        <div style={{ marginTop: 15 }}>
+          <button 
+            className="btn google-sheet-btn" 
+            onClick={handleExportGoogleSheet}
+            disabled={exportingSheet || attendance.length === 0}
+          >
+            {exportingSheet ? "Opening Sheet..." : "📊 Open in Google Sheets"}
+          </button>
+        </div>
+
+        {/* Row 2: College select + Download Selected */}
+        <div className="action-row college-row">
           <select
             value={selectedCollege}
             onChange={(e) => setSelectedCollege(e.target.value)}
-            className="input"
+            className="college-select"
           >
             <option value="">Select College</option>
             {Object.keys(collegeStudents).sort().map(college => (

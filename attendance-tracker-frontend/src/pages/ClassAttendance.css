@@ -1,156 +1,234 @@
-/* ================= COLORS ================= */
-
-:root {
-  --primary: #4F46E5;
-  --primary-light: #EEF2FF;
-  --bg: #F8FAFC;
-  --card: #FFFFFF;
-  --border: #E5E7EB;
-  --text: #111827;
-  --subtext: #6B7280;
-}
-
-/* ================= PAGE ================= */
+/* ============================================================
+   CLASS ATTENDANCE PAGE
+   ============================================================ */
 
 .page {
-  padding: 24px;
-  background-color: var(--bg);
+  padding: 28px 24px;
+  background: var(--bg);
   min-height: 100vh;
-  font-family: Inter, system-ui, Arial, sans-serif;
+  transition: background var(--transition);
 }
 
-/* ================= HEADINGS ================= */
+/* ---- HEADINGS ---- */
 
 .page h2 {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  font-size: 24px;
+  font-weight: 700;
   color: var(--text);
-  font-weight: 600;
+  letter-spacing: -0.02em;
+  transition: color var(--transition);
 }
 
 .page h3 {
-  margin-top: 26px;
-  margin-bottom: 12px;
+  margin-top: 28px;
+  margin-bottom: 14px;
+  font-size: 17px;
+  font-weight: 700;
   color: var(--text);
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color var(--transition);
+}
+
+.page h3::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(180deg, var(--primary), #a78bfa);
+  border-radius: 4px;
 }
 
 .page h4 {
-  margin-top: 14px;
-  margin-bottom: 8px;
+  margin-top: 16px;
+  margin-bottom: 10px;
+  font-size: 14px;
   color: var(--subtext);
-  font-weight: 500;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color var(--transition);
 }
 
-/* ================= BUTTON ================= */
+/* ---- BUTTON ---- */
 
 .btn {
-  padding: 8px 14px;
+  padding: 9px 16px;
   border: none;
-  border-radius: 8px;
-  background-color: var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--primary);
   color: white;
   cursor: pointer;
   font-size: 13px;
-  transition: 0.2s ease;
+  font-weight: 600;
+  transition: all var(--transition);
 }
 
 .btn:hover {
-  background-color: #4338CA;
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
 }
 
-/* ================= CARD ================= */
+.btn:active {
+  transform: scale(0.97);
+}
+
+.google-sheet-btn {
+  background: #0f9d58;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.google-sheet-btn:hover {
+  background: #0b8043;
+  box-shadow: 0 4px 12px rgba(15, 157, 88, 0.35);
+}
+
+.google-sheet-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---- CARD ---- */
 
 .card {
   background: var(--card);
-  padding: 18px;
-  border-radius: 14px;
+  padding: 20px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-sm);
   margin-bottom: 22px;
+  transition: background var(--transition), border-color var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* ================= COLLEGE SECTION ================= */
+/* ---- ACTION ROW ---- */
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.college-row {
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.college-select {
+  flex: 1;
+  min-width: 180px;
+  padding: 9px 12px;
+  font-size: 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.college-select:focus {
+  border-color: var(--border-focus);
+  background: var(--card);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* ---- COLLEGE SECTION ---- */
 
 .college {
   border-left: 4px solid var(--primary);
-  padding-left: 14px;
+  padding-left: 16px;
   margin-bottom: 30px;
 }
 
-/* ================= GROUP ================= */
+/* ---- GROUP ---- */
 
 .group {
   margin-left: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
-/* ================= TABLE ================= */
+/* ---- TABLE ---- */
 
 .table-wrapper {
   overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
 }
 
 .table {
   width: 100%;
   min-width: 600px;
   border-collapse: collapse;
-  margin-top: 10px;
-  background: white;
-  border-radius: 10px;
-  overflow: hidden;
+  background: var(--card);
+  transition: background var(--transition);
 }
 
 /* header */
-
 .table th {
-  background-color: var(--primary-light);
-  color: var(--subtext);
-  padding: 12px;
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 12px 14px;
   text-align: left;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   border-bottom: 1px solid var(--border);
+  transition: background var(--transition), color var(--transition);
 }
 
 /* cells */
-
 .table td {
-  padding: 11px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
   color: var(--text);
+  transition: color var(--transition), background var(--transition),
+    border-color var(--transition);
 }
 
 /* row hover */
-
 .table tbody tr:hover {
-  background-color: #F9FAFB;
+  background: var(--bg-secondary);
 }
 
-/* alternating rows */
-
-.table tbody tr:nth-child(even) {
-  background-color: #FCFCFD;
+/* last row no border */
+.table tbody tr:last-child td {
+  border-bottom: none;
 }
 
-/* ================= LOADING ================= */
+/* ---- LOADING ---- */
 
 .loading {
   text-align: center;
   font-weight: 500;
   color: var(--subtext);
-  margin-top: 40px;
+  margin-top: 60px;
+  font-size: 15px;
+  transition: color var(--transition);
 }
 
-/* ================= RESPONSIVE ================= */
+/* ---- RESPONSIVE ---- */
 
 @media (max-width: 768px) {
   .page {
-    padding: 16px;
+    padding: 18px 14px;
   }
 
   .page h2 {
-    font-size: 22px;
+    font-size: 20px;
   }
 }

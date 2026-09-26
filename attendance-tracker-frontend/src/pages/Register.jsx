@@ -8,23 +8,44 @@ function Register() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    password: ""
+    password: "",
+    confirmPassword: ""
   });
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
-  const handleChange = (e) =>
+  const handleChange = (e) => {
+    setError("");
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match!");
+      return;
+    }
+
     try {
-      await API.post("/teachers/register", form);
-      alert("Registration successful");
-      navigate("/");
+      const res = await API.post("/teachers/register", {
+        name: form.name,
+        email: form.email,
+        password: form.password
+      });
+
+      // 🔑 Direct login: Save token and teacher to localStorage
+      if (res.data.token && res.data.teacher) {
+        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("teacher", JSON.stringify(res.data.teacher));
+        navigate("/branches");
+      } else {
+        alert("Registration successful. Please login.");
+        navigate("/");
+      }
     } catch (err) {
-      alert(err.response?.data?.message || "Error");
+      setError(err.response?.data?.message || "Registration failed");
     }
   };
 
@@ -33,17 +54,22 @@ function Register() {
       <div className="register-card">
         <h2>Teacher Register</h2>
 
+        {error && <div style={{ color: "#ef4444", marginBottom: "12px", fontSize: "14px", fontWeight: "600" }}>{error}</div>}
+
         <form onSubmit={handleSubmit}>
           <input
             name="name"
             placeholder="Name"
+            value={form.name}
             onChange={handleChange}
             required
           />
 
           <input
             name="email"
+            type="email"
             placeholder="Email"
+            value={form.email}
             onChange={handleChange}
             required
           />
@@ -52,11 +78,21 @@ function Register() {
             name="password"
             type="password"
             placeholder="Password"
+            value={form.password}
             onChange={handleChange}
             required
           />
 
-          <button>Create Account</button>
+          <input
+            name="confirmPassword"
+            type="password"
+            placeholder="Confirm Password"
+            value={form.confirmPassword}
+            onChange={handleChange}
+            required
+          />
+
+          <button type="submit">Create Account</button>
         </form>
 
         <div className="register-footer">

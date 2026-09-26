@@ -279,6 +279,26 @@ function OverallAttendance() {
     }
   };
 
+  /* ================= EXPORT GOOGLE SHEET ================= */
+
+  const [exportingSheet, setExportingSheet] = useState(false);
+
+  const exportGoogleSheet = async () => {
+    try {
+      setExportingSheet(true);
+      const res = await API.post(`/attendance/export-google-sheet-overall/${branchId}`);
+      if (res.data?.sheetUrl) {
+        window.open(res.data.sheetUrl, "_blank");
+      } else {
+        alert("Google Sheet created successfully!");
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to export to Google Sheets. Make sure your Google Account is connected.");
+    } finally {
+      setExportingSheet(false);
+    }
+  };
+
   /* ================= UI ================= */
 
   return (
@@ -288,12 +308,16 @@ function OverallAttendance() {
 
       {/* ACTION BAR */}
       <div className="overall-actions">
-        <button className="btn" onClick={() => navigate(-1)}>
-          ← Back
+        <button className="export-btn" onClick={exportExcel}>
+          📥 Export Excel
         </button>
 
-        <button className="export-btn" onClick={exportExcel}>
-          Export All
+        <button
+          className="export-btn google-sheet-btn"
+          onClick={exportGoogleSheet}
+          disabled={exportingSheet || data.length === 0}
+        >
+          {exportingSheet ? "Opening Sheet..." : "📊 Open in Google Sheets"}
         </button>
 
         <select

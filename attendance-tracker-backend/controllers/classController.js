@@ -4,14 +4,14 @@
 import Class from "../models/Class.js";
 import Attendance from "../models/Attendance.js";
 import Branch from "../models/Branch.js";
- 
+import { createMeetLink } from "../services/googleCalendar.js";
 
 export const createClass = async (req, res) => {
   try {
-    const { className, subject, meetLink, expiresAt, branchId } = req.body;
+    const { className, subject, classDate, startTime, endTime, meetLink: customMeetLink, expiresAt, branchId, accessType } = req.body;
 
-    if (!className || !subject || !meetLink || !expiresAt || !branchId) {
-      return res.status(400).json({ message: "All fields including branch are required" });
+    if (!className || !subject || !branchId) {
+      return res.status(400).json({ message: "Class name, subject, and branch are required" });
     }
 
     // 🔐 validate branch ownership
@@ -22,6 +22,42 @@ export const createClass = async (req, res) => {
 
     if (!branch) {
       return res.status(403).json({ message: "Invalid branch selected" });
+    }
+
+    // Determine start & end Datetime
+    let startDateTime, endDateTime;
+    if (classDate && startTime && endTime) {
+      startDateTime = new Date(`${classDate}T${startTime}`);
+      endDateTime = new Date(`${classDate}T${endTime}`);
+    } else if (expiresAt) {
+      startDateTime = new Date();
+      endDateTime = new Date(expiresAt);
+    } else {
+      startDateTime = new Date();
+      endDateTime = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours default
+    }
+
+    // Determine Meet Link: Use custom link if provided, else auto-generate via Google Calendar if connected
+    let finalMeetLink = customMeetLink || "";
+
+    if (!finalMeetLink && req.user.googleAccessToken) {
+      try {
+        finalMeetLink = await createMeetLink(
+          req.user,
+          `${className} - ${subject}`,
+          startDateTime,
+          endDateTime,
+          `Branch: ${branch.name}`,
+          accessType || "open"
+        );
+      } catch (calendarErr) {
+        console.error("Google Calendar Meet link creation failed:", calendarErr.message);
+      }
+    }
+
+    // Fallback if no meet link was generated or provided
+    if (!finalMeetLink) {
+      finalMeetLink = "https://meet.google.com/new";
     }
 
     // 🔢 ensure unique 6 digit code
@@ -36,10 +72,11 @@ export const createClass = async (req, res) => {
     const newClass = await Class.create({
       className,
       subject,
-      meetLink,
+      meetLink: finalMeetLink,
       classCode,
       branch: branchId,
-      expiresAt: new Date(expiresAt), // store as Date (NOT string)
+      expiresAt: endDateTime,
+      accessType: accessType || "open",
       teacher: req.user._id
     });
 
@@ -51,39 +88,6 @@ export const createClass = async (req, res) => {
 };
 
 
-
-// export const getMyClasses = async (req, res) => {
-//   try {
-//     const classes = await Class.find({ teacher: req.user._id })
-//       .populate("branch", "name")
-//       .sort({ createdAt: -1 });
-
-//     res.status(200).json(classes);
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-// export const getMyClasses = async (req, res) => {
-//   try {
-//     const { branchId } = req.query;
-
-//     const filter = { teacher: req.user._id };
-
-//     // ⭐ If branch selected → filter it
-//     if (branchId) {
-//       filter.branch = branchId;
-//     }
-
-//     const classes = await Class.find(filter)
-//       .populate("branch", "name")
-//       .sort({ createdAt: -1 });
-
-//     res.status(200).json(classes);
-
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
 
 export const getMyClasses = async (req, res) => {
   try {
@@ -119,7 +123,18 @@ export const getMyClasses = async (req, res) => {
 export const updateClass = async (req, res) => {
   try {
     const { id } = req.params;
-    const { className, subject, meetLink, expiresAt, branchId } = req.body;
+    const {
+      className,
+      subject,
+      meetLink,
+      expiresAt,
+      branchId,
+      classDate,
+      startTime,
+      endTime,
+      accessType,
+      regenerateMeet
+    } = req.body;
 
     const classDoc = await Class.findOne({
       _id: id,
@@ -144,8 +159,43 @@ export const updateClass = async (req, res) => {
 
     if (className) classDoc.className = className;
     if (subject) classDoc.subject = subject;
-    if (meetLink) classDoc.meetLink = meetLink;
-    if (expiresAt) classDoc.expiresAt = new Date(expiresAt);
+    if (accessType) classDoc.accessType = accessType;
+
+    // Handle Timings
+    let startDateTime = null;
+    let endDateTime = null;
+
+    if (classDate && startTime && endTime) {
+      startDateTime = new Date(`${classDate}T${startTime}`);
+      endDateTime = new Date(`${classDate}T${endTime}`);
+      classDoc.expiresAt = endDateTime;
+    } else if (expiresAt) {
+      endDateTime = new Date(expiresAt);
+      classDoc.expiresAt = endDateTime;
+    }
+
+    // Handle Google Meet Link regeneration if requested
+    if (regenerateMeet && req.user.googleAccessToken) {
+      try {
+        const start = startDateTime || new Date();
+        const end = endDateTime || classDoc.expiresAt || new Date(Date.now() + 60 * 60 * 1000);
+        const generatedMeet = await createMeetLink(
+          req.user,
+          `${classDoc.className} - ${classDoc.subject}`,
+          start,
+          end,
+          "Updated Class Session",
+          classDoc.accessType || "open"
+        );
+        if (generatedMeet) {
+          classDoc.meetLink = generatedMeet;
+        }
+      } catch (calErr) {
+        console.error("Failed to regenerate Google Meet link:", calErr.message);
+      }
+    } else if (meetLink) {
+      classDoc.meetLink = meetLink;
+    }
 
     await classDoc.save();
 
@@ -184,16 +234,15 @@ export const getClassByCode = async (req, res) => {
   try {
     const { classCode } = req.params;
 
-    const foundClass = await Class.findOne({
-      classCode,
-      expiresAt: { $gt: new Date() } // 🔥 DB handles expiry
-    }).populate("branch", "name");
+    const foundClass = await Class.findOne({ classCode }).populate("branch", "name");
 
     if (!foundClass) {
-      return res.status(410).json({
-        message: "Class link expired or invalid"
+      return res.status(404).json({
+        message: "Invalid or non-existent class link"
       });
     }
+
+    const isExpired = new Date(foundClass.expiresAt) <= new Date();
 
     res.status(200).json({ 
       className: foundClass.className,
@@ -201,7 +250,8 @@ export const getClassByCode = async (req, res) => {
       branch: foundClass.branch?.name || "General",
       branchId: foundClass.branch?._id,
       expiresAt: foundClass.expiresAt,
-      meetLink: foundClass.meetLink
+      meetLink: foundClass.meetLink,
+      isExpired
     });
 
   } catch (error) {

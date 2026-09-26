@@ -1,157 +1,426 @@
-/* ===== PAGE ===== */
+/* ============================================================
+   DASHBOARD / BRANCH CLASSES PAGE — CodeGuru Design
+   ============================================================ */
 
-.dashboard {
-  padding: 24px;
-  background-color: var(--bg);
+.dashboard-page {
+  padding: 36px 24px;
+  background: var(--bg);
   min-height: 100vh;
-  font-family: Inter, system-ui, Arial, sans-serif;
+  transition: background var(--transition);
+  max-width: 1180px;
+  margin: 0 auto;
 }
 
-/* ===== TOP BAR ===== */
+/* ---- HEADER ---- */
 
-.dashboard-top {
+.dashboard-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 22px;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dashboard-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.dashboard-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.dashboard-subtitle {
+  font-size: 13.5px;
+  color: var(--subtext);
+  margin-top: 3px;
+}
+
+.dashboard-header-actions {
+  display: flex;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.dashboard-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+/* ---- BUTTONS ---- */
+
+.btn {
+  border: none;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13.5px;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* ===== EMPTY STATE ===== */
+.btn-back {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
 
-.empty-state {
+.btn-back:hover {
+  background: var(--card-hover);
+  border-color: var(--subtext);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), #7c3aed);
+  color: white;
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.45);
+}
+
+.btn-secondary {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--card-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ---- EMPTY STATE ---- */
+
+.empty-classes-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 56px 24px;
   text-align: center;
-  padding: 40px 10px;
+  max-width: 600px;
+  margin: 40px auto;
+  box-shadow: var(--shadow-sm);
+}
+
+.empty-icon {
+  font-size: 42px;
+  margin-bottom: 12px;
+}
+
+.empty-classes-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.empty-classes-card p {
   color: var(--subtext);
+  font-size: 14px;
+  margin-bottom: 20px;
+  line-height: 1.5;
 }
 
-.empty-state button {
-  margin-top: 12px;
-}
-
-/* ===== GRID ===== */
+/* ---- 3-COLUMN GRID ---- */
 
 .classes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  width: 100%;
 }
 
-/* ===== CARD ===== */
+/* ============================================================
+   CODEGURU CARD DESIGN
+   ============================================================ */
 
-.class-card {
+.class-card-item {
   background: var(--card);
   border-radius: 16px;
-  padding: 18px;
   border: 1px solid var(--border);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 180px;
-  transition: 0.2s ease;
+  position: relative;
+  cursor: pointer;
 }
 
-.class-card:hover {
+.class-card-item:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 26px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(16, 185, 129, 0.4);
 }
 
-.class-info h3 {
-  margin-bottom: 6px;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text);
+/* Top Accent Bar */
+.card-top-accent {
+  height: 4.5px;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  width: 100%;
 }
 
-.class-info p {
-  margin: 3px 0;
-  font-size: 14px;
-  color: var(--subtext);
+.accent-expired {
+  background: linear-gradient(90deg, #94a3b8, #cbd5e1);
 }
 
-/* JOIN BUTTON */
-
-.join-btn {
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 13px;
-  color: var(--primary);
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.join-btn:hover {
-  text-decoration: underline;
-}
-
-/* ===== BUTTON GROUP ===== */
-
-.card-actions {
-  margin-top: 14px;
+.card-inner {
+  padding: 20px 22px;
   display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+}
+
+/* ---- HEADER ROW ---- */
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 8px;
+}
+
+.card-tags {
+  display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.btn {
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
+.card-tag {
+  background: var(--bg-secondary);
+  color: var(--subtext);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--border);
+}
+
+.card-status-badge {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-expired {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--subtext);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+}
+
+.dot-expired {
+  background: #94a3b8;
+}
+
+/* ---- 3-DOT MENU ---- */
+
+.card-menu-wrapper {
+  position: relative;
+}
+
+.menu-trigger-btn {
+  background: transparent;
   border: none;
-  transition: 0.2s ease;
-  font-weight: 500;
-  white-space: nowrap;
+  color: var(--subtext);
+  font-size: 18px;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
 }
-.class-h2{
-  margin-top: 20px;
-   
-  font-size: 30px;
+
+.menu-trigger-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text);
 }
 
-.btn-view { background: var(--primary); color: white; }
-.btn-view:hover { background: var(--primary-hover); }
+.card-dropdown-menu {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  width: 200px;
+  padding: 6px;
+  z-index: 100;
+  animation: fadeIn 0.15s ease-out;
+}
 
-.btn-create { background: var(--success); color: white; }
-.btn-create:hover { background: var(--success-hover); }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-.btn.danger { background: var(--danger); color: white; }
-.btn.danger:hover { background-color:  rgba(255, 0, 0, 0.601); }
+.card-dropdown-menu button,
+.dropdown-link {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  display: block;
+  text-decoration: none;
+  transition: background var(--transition);
+}
 
-/* ===== MOBILE ===== */
+.card-dropdown-menu button:hover,
+.dropdown-link:hover {
+  background: var(--bg-secondary);
+}
 
-@media (max-width: 480px) {
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
 
-  .dashboard {
-    padding: 16px;
+.danger-item {
+  color: var(--danger) !important;
+}
+
+.danger-item:hover {
+  background: var(--danger-light) !important;
+}
+
+/* ---- BODY ---- */
+
+.card-body {
+  margin-bottom: 22px;
+}
+
+.card-title {
+  font-size: 18.5px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+  transition: color var(--transition);
+  line-height: 1.3;
+}
+
+.card-desc {
+  font-size: 13px;
+  color: var(--subtext);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.code-badge {
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ---- FOOTER ROW ---- */
+
+.card-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  gap: 10px;
+}
+
+.copy-link-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.copy-link-btn:hover {
+  background: var(--card-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.card-action-link {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: transform var(--transition), color var(--transition);
+  padding: 0;
+}
+
+.card-action-link:hover {
+  color: var(--primary-hover);
+  transform: translateX(3px);
+}
+
+/* ---- RESPONSIVE ---- */
+
+@media (max-width: 980px) {
+  .classes-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .dashboard-page {
+    padding: 20px 14px;
   }
 
-  .dashboard-top {
+  .classes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-header {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
   }
 
-  .dashboard-actions {
+  .dashboard-header-actions {
     width: 100%;
-  }
-
-  .dashboard-actions .btn {
-    width: 100%;
-  }
-
-  .card-actions {
-    flex-direction: column;
-  }
-
-  .card-actions .btn {
-    width: 100%;
+    justify-content: space-between;
   }
 }

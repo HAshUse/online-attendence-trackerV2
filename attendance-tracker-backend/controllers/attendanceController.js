@@ -2,6 +2,14 @@ import mongoose from "mongoose";
 import Student from "../models/Student.js";
 import Class from "../models/Class.js";
 import Attendance from "../models/Attendance.js";
+import Branch from "../models/Branch.js";
+import Teacher from "../models/Teacher.js";
+import {
+  markStudentPresent,
+  exportClassAttendanceToSheet,
+  exportOverallAttendanceToSheet,
+  getSheetUrl,
+} from "../services/googleSheets.js";
 import XLSX from "xlsx";
 import fs from "fs";
 
@@ -58,6 +66,32 @@ export const markAttendance = async (req, res) => {
       class: foundClass._id
     });
     console.log("Attendance created:", attendanceDoc);
+
+    // 📊 Write to Google Sheet (non-critical)
+    try {
+      const branch = await Branch.findById(foundClass.branch);
+      if (branch?.sheetId) {
+        const teacher = await Teacher.findById(foundClass.teacher);
+        if (teacher?.googleAccessToken) {
+          const tokens = {
+            access_token: teacher.googleAccessToken,
+            refresh_token: teacher.googleRefreshToken,
+            expiry_date: teacher.googleTokenExpiry,
+          };
+          const classDate = new Date().toLocaleDateString("en-IN", {
+            day: "2-digit", month: "2-digit", year: "numeric"
+          });
+          await markStudentPresent(tokens, branch.sheetId, {
+            fullName: student.fullName,
+            email: student.email,
+            group: student.group,
+            college: student.college,
+          }, classDate);
+        }
+      }
+    } catch (sheetErr) {
+      console.warn("Sheet write failed (non-critical):", sheetErr.message);
+    }
 
     res.status(200).json({
       message: "Attendance marked successfully",
@@ -129,6 +163,54 @@ export const exportAttendance = async (req, res) => {
     res.download(filePath, () => fs.unlinkSync(filePath));
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+/* =====================================================
+   EXPORT CLASS ATTENDANCE TO GOOGLE SHEETS
+===================================================== */
+export const exportClassToGoogleSheet = async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    const classDoc = await Class.findById(classId).populate("branch");
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    const teacher = await Teacher.findById(req.user._id);
+    if (!teacher || !teacher.googleAccessToken) {
+      return res.status(400).json({
+        message: "Please connect your Google Account first from the top-right profile menu to export to Google Sheets.",
+      });
+    }
+
+    const attendanceRecords = await Attendance.find({ class: classId })
+      .populate("student", "fullName email group college")
+      .sort({ createdAt: 1 });
+
+    if (!attendanceRecords.length) {
+      return res.status(404).json({ message: "No attendance records found to export" });
+    }
+
+    const tokens = {
+      googleAccessToken: teacher.googleAccessToken,
+      googleRefreshToken: teacher.googleRefreshToken,
+    };
+
+    const sheetResult = await exportClassAttendanceToSheet(
+      tokens,
+      `${classDoc.className} - ${classDoc.subject}`,
+      attendanceRecords
+    );
+
+    res.json({
+      message: "Exported to Google Sheets successfully",
+      sheetUrl: sheetResult.sheetUrl,
+    });
+  } catch (error) {
+    console.error("Google Sheets export error:", error);
+    res.status(500).json({ message: error.message || "Google Sheets export failed" });
   }
 };
 
@@ -609,3 +691,97 @@ export const exportOverallAttendanceExcel = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+/* =====================================================
+   EXPORT OVERALL ATTENDANCE TO GOOGLE SHEETS
+===================================================== */
+export const exportOverallToGoogleSheet = async (req, res) => {
+  try {
+    const teacherId = req.user._id;
+    const { branchId } = req.params;
+
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.googleAccessToken) {
+      return res.status(400).json({
+        message: "Please connect your Google Account first to export to Google Sheets.",
+      });
+    }
+
+    const branch = await Branch.findOne({ _id: branchId, teacher: teacherId });
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
+
+    const branchClasses = await Class.find({
+      teacher: teacherId,
+      branch: branchId,
+    }).select("_id className createdAt");
+
+    const totalClasses = branchClasses.length;
+    const classIdSet = new Set(branchClasses.map((c) => c._id.toString()));
+
+    const attendance = await Attendance.find({
+      class: { $in: [...classIdSet] },
+    })
+      .populate("class", "className createdAt")
+      .populate("student", "fullName email group college");
+
+    if (!attendance.length) {
+      return res.status(404).json({ message: "No attendance records found for this branch" });
+    }
+
+    const map = {};
+    attendance.forEach((r) => {
+      const s = r.student;
+      if (!s) return;
+
+      const classDate = r.class?.createdAt ? r.class.createdAt.toISOString().split("T")[0] : "";
+      const label = `${classDate} - ${r.class?.className || "Class"}`;
+
+      if (!map[s.email]) {
+        map[s.email] = {
+          FullName: s.fullName,
+          Email: s.email,
+          Group: s.group,
+          College: s.college,
+          attended: new Set(),
+        };
+      }
+      map[s.email].attended.add(label);
+    });
+
+    const rows = Object.values(map).map((student) => ({
+      FullName: student.FullName,
+      Email: student.Email,
+      Group: student.Group,
+      College: student.College,
+      TotalClasses: totalClasses,
+      TotalClassesJoined: student.attended.size,
+      AttendancePercentage:
+        totalClasses === 0
+          ? "0%"
+          : Math.round((student.attended.size / totalClasses) * 100) + "%",
+      Classes: Array.from(student.attended).join(", "),
+    }));
+
+    const tokens = {
+      googleAccessToken: teacher.googleAccessToken,
+      googleRefreshToken: teacher.googleRefreshToken,
+    };
+
+    const sheetResult = await exportOverallAttendanceToSheet(
+      tokens,
+      branch.name,
+      rows
+    );
+
+    res.json({
+      message: "Exported overall attendance to Google Sheets successfully",
+      sheetUrl: sheetResult.sheetUrl,
+    });
+  } catch (error) {
+    console.error("Google Sheets overall export error:", error);
+    res.status(500).json({ message: error.message || "Failed to export to Google Sheets" });
+  }
+};
+

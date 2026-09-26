@@ -1,25 +1,6 @@
-/* ================= GLOBAL ================= */
-
-:root {
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
-  --bg: #F8FAFC;
-  --card: #FFFFFF;
-  --border: #E5E7EB;
-  --text: #111827;
-  --subtext: #6B7280;
-  --danger: #EF4444;
-  --danger-light: #FEF2F2;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: Inter, system-ui, Arial, sans-serif;
-}
-
-/* ================= PAGE ================= */
+/* ============================================================
+   LOGIN & REGISTER — Auth Pages
+   ============================================================ */
 
 .login-page {
   min-height: 100vh;
@@ -27,45 +8,109 @@
   justify-content: center;
   align-items: center;
   background: var(--bg);
-  padding: 20px;
+  padding: 24px;
+  transition: background var(--transition);
 }
 
-/* ================= CARD ================= */
+/* Decorative gradient blobs */
+.login-page::before {
+  content: "";
+  position: fixed;
+  top: -120px;
+  left: -120px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.login-page::after {
+  content: "";
+  position: fixed;
+  bottom: -100px;
+  right: -100px;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(167,139,250,0.1), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- CARD ---- */
 
 .login-card {
   background: var(--card);
-  padding: 32px;
+  padding: 36px 32px;
   width: 100%;
-  max-width: 380px;
-  border-radius: 16px;
+  max-width: 400px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  z-index: 1;
+  transition: background var(--transition), border-color var(--transition),
+    box-shadow var(--transition);
 }
 
-/* ================= HEADING ================= */
+/* ---- LOGO / BRANDING ---- */
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.login-logo-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, var(--primary), #a78bfa);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+/* ---- HEADING ---- */
 
 .login-card h2 {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 6px;
+  font-size: 22px;
+  font-weight: 700;
   color: var(--text);
-  font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: -0.02em;
+  transition: color var(--transition);
 }
 
-/* ================= ERROR ================= */
+.login-subtitle {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--subtext);
+  margin-bottom: 24px;
+  transition: color var(--transition);
+}
+
+/* ---- ERROR ---- */
 
 .login-error {
   background: var(--danger-light);
   color: var(--danger);
   font-size: 13px;
-  padding: 10px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   text-align: center;
-  margin-bottom: 8px;
-  border: 1px solid #fecaca;
+  margin-bottom: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-/* ================= FORM ================= */
+/* ---- FORM ---- */
 
 .login-card form {
   display: flex;
@@ -73,92 +118,101 @@
   gap: 14px;
 }
 
-/* ================= INPUTS ================= */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--subtext);
+  transition: color var(--transition);
+}
+
+/* ---- INPUTS ---- */
 
 .login-card input {
-  padding: 12px 14px;
+  padding: 11px 14px;
   font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
   outline: none;
-  transition: all 0.2s ease;
-  background: #fff;
+  transition: all var(--transition);
+  width: 100%;
 }
 
 .login-card input::placeholder {
-  color: var(--subtext);
+  color: var(--text-muted);
 }
 
 .login-card input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  border-color: var(--border-focus);
+  background: var(--card);
+  box-shadow: 0 0 0 3px var(--primary-light);
 }
 
-/* ================= BUTTON ================= */
+/* ---- BUTTON ---- */
 
-.login-card button {
-  margin-top: 10px;
+.login-card button[type="submit"],
+.login-submit-btn {
+  margin-top: 4px;
   padding: 12px;
-  background-color: var(--primary);
+  background: linear-gradient(135deg, var(--primary), #7c3aed);
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition);
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
 }
 
-.login-card button:hover {
-  background-color: var(--primary-hover);
+.login-card button[type="submit"]:hover,
+.login-submit-btn:hover {
   transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
 }
 
-.login-card button:active {
+.login-card button[type="submit"]:active,
+.login-submit-btn:active {
   transform: translateY(0);
 }
 
-/* ================= FOOTER ================= */
+/* ---- FOOTER ---- */
 
 .login-footer {
   text-align: center;
-  font-size: 14px;
-  margin-top: 14px;
+  font-size: 13.5px;
+  margin-top: 18px;
   color: var(--subtext);
+  transition: color var(--transition);
 }
 
 .login-footer span {
   color: var(--primary);
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
+  transition: all var(--transition);
 }
 
 .login-footer span:hover {
   text-decoration: underline;
 }
 
-/* ================= RESPONSIVE ================= */
+/* ---- RESPONSIVE ---- */
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .login-card {
-    padding: 24px;
-    border-radius: 14px;
+    padding: 28px 20px;
   }
 
   .login-card h2 {
     font-size: 20px;
-  }
-}
-
-@media (min-width: 768px) {
-  .login-card {
-    max-width: 420px;
-    padding: 36px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .login-card {
-    max-width: 440px;
   }
 }

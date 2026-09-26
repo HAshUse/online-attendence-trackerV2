@@ -1,6 +1,8 @@
 import Branch from "../models/Branch.js";
 import Class from "../models/Class.js";
 import Attendance from "../models/Attendance.js";
+import Teacher from "../models/Teacher.js";
+import { createBranchSheet, getSheetUrl } from "../services/googleSheets.js";
 
 
 
@@ -27,7 +29,27 @@ export const createBranch = async (req, res) => {
       teacher: req.user._id
     });
 
-    res.status(201).json(branch);
+    // Auto-create Google Sheet if teacher has connected Google
+    try {
+      const teacher = await Teacher.findById(req.user._id);
+      if (teacher?.googleAccessToken) {
+        const tokens = {
+          access_token: teacher.googleAccessToken,
+          refresh_token: teacher.googleRefreshToken,
+          expiry_date: teacher.googleTokenExpiry,
+        };
+        const sheetId = await createBranchSheet(tokens, name);
+        branch.sheetId = sheetId;
+        await branch.save();
+      }
+    } catch (sheetErr) {
+      console.warn("Sheet creation failed (non-critical):", sheetErr.message);
+    }
+
+    res.status(201).json({
+      ...branch.toObject(),
+      sheetUrl: branch.sheetId ? getSheetUrl(branch.sheetId) : null,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -39,7 +61,18 @@ export const getMyBranches = async (req, res) => {
     const branches = await Branch.find({ teacher: req.user._id })
       .sort({ createdAt: -1 });
 
-    res.json(branches);
+    const branchesWithStats = await Promise.all(
+      branches.map(async (b) => {
+        const classCount = await Class.countDocuments({ branch: b._id });
+        return {
+          ...b.toObject(),
+          classCount,
+          sheetUrl: b.sheetId ? getSheetUrl(b.sheetId) : null,
+        };
+      })
+    );
+
+    res.json(branchesWithStats);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -81,14 +114,16 @@ export const deleteBranch = async (req, res) => {
   }
 };
 
- 
 export const getBranchById = async (req, res) => {
   try {
     const branch = await Branch.findById(req.params.id);
 
     if (!branch) return res.status(404).json({ message: "Branch not found" });
 
-    res.json(branch);
+    res.json({
+      ...branch.toObject(),
+      sheetUrl: branch.sheetId ? getSheetUrl(branch.sheetId) : null,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

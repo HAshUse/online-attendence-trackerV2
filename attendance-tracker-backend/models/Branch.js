@@ -10,7 +10,9 @@ const branchSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Teacher",
       required: true
-    }
+    },
+    // Google Sheets
+    sheetId: { type: String, default: null },
   },
   { timestamps: true }
 );

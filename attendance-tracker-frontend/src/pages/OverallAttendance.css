@@ -1,103 +1,119 @@
-/* ================= ROOT COLORS ================= */
-
-:root {
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
-  --bg: #F8FAFC;
-  --card: #FFFFFF;
-  --border: #E5E7EB;
-  --text: #111827;
-  --subtext: #6B7280;
-  --table-header: #F1F5F9;
-}
-
-/* ================= PAGE ================= */
+/* ============================================================
+   OVERALL ATTENDANCE PAGE
+   ============================================================ */
 
 .overall-page {
-  padding: 24px;
+  padding: 28px 24px;
   background: var(--bg);
   min-height: 100vh;
-  font-family: Inter, system-ui, Arial, sans-serif;
+  transition: background var(--transition);
 }
 
 .overall-page h2 {
-  margin-bottom: 18px;
+  margin-bottom: 22px;
+  font-size: 24px;
+  font-weight: 700;
   color: var(--text);
-  font-weight: 600;
+  letter-spacing: -0.02em;
+  transition: color var(--transition);
 }
 
-/* ================= ACTION BAR ================= */
+/* ---- ACTION BAR ---- */
 
 .overall-actions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
-/* ================= BUTTONS ================= */
+/* ---- BUTTONS ---- */
 
 .btn,
 .export-btn {
-  background-color: var(--primary);
+  background: var(--primary);
   color: #fff;
   border: none;
   padding: 10px 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 14px;
-  transition: 0.2s ease;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: all var(--transition);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btn:hover,
 .export-btn:hover {
-  background-color: var(--primary-hover);
+  background: var(--primary-hover);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.btn:active,
+.export-btn:active {
+  transform: scale(0.97);
 }
 
 .btn:disabled,
 .export-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
-/* ================= INPUT ================= */
+.google-sheet-btn {
+  background: #0f9d58 !important;
+  color: white !important;
+}
+
+.google-sheet-btn:hover {
+  background: #0b8043 !important;
+  box-shadow: 0 4px 12px rgba(15, 157, 88, 0.35) !important;
+}
+
+/* ---- INPUT ---- */
 
 .input {
   min-width: 180px;
-  height: 38px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  padding: 6px 10px;
-  transition: 0.2s ease;
-  background: white;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  padding: 6px 12px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  transition: all var(--transition);
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79,70,229,0.15);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--primary-light);
 }
 
-/* ================= TABLE CONTAINER ================= */
+/* ---- TABLE CONTAINER ---- */
 
 .table-container {
   background: var(--card);
-  padding: 16px;
-  border-radius: 14px;
+  padding: 0;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: background var(--transition), border-color var(--transition);
 }
-
-/* SCROLL WRAPPER */
 
 .table-wrapper {
   overflow-x: auto;
 }
 
-/* ================= TABLE ================= */
+/* ---- TABLE ---- */
 
 .overall-table {
   width: 100%;
@@ -105,45 +121,55 @@
   min-width: 650px;
 }
 
-/* sticky header */
-
+/* header */
 .overall-table thead th {
   position: sticky;
   top: 0;
-  background: var(--table-header);
+  background: var(--primary-light);
   z-index: 2;
+  transition: background var(--transition);
 }
 
 .overall-table th {
-  padding: 13px;
+  padding: 13px 16px;
   text-align: left;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--subtext);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
   border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: color var(--transition), border-color var(--transition);
 }
 
 .overall-table td {
-  padding: 12px;
+  padding: 13px 16px;
   font-size: 14px;
   color: var(--text);
   border-bottom: 1px solid var(--border);
+  transition: color var(--transition), background var(--transition),
+    border-color var(--transition);
 }
 
 .overall-table tbody tr:hover {
-  background-color: #F9FAFB;
+  background: var(--bg-secondary);
 }
 
-/* ================= EMPTY ================= */
+.overall-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---- EMPTY ---- */
 
 .no-data {
   text-align: center;
   color: var(--subtext);
-  padding: 30px;
+  padding: 40px 20px;
   font-size: 14px;
+  transition: color var(--transition);
 }
 
-/* ================= COLLEGE SECTION ================= */
+/* ---- COLLEGE SECTION ---- */
 
 .college-wise-container {
   margin-top: 40px;
@@ -151,28 +177,29 @@
 
 .college-card {
   margin-top: 22px;
-  padding: 18px;
+  padding: 20px;
   background: var(--card);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition), border-color var(--transition);
 }
 
 .college-title {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   border-left: 4px solid var(--primary);
   padding-left: 12px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text);
+  transition: color var(--transition);
 }
 
-/* ================= RESPONSIVE ================= */
-
-/* TABLET */
+/* ---- RESPONSIVE ---- */
 
 @media (max-width: 768px) {
-
   .overall-page {
-    padding: 18px;
+    padding: 18px 16px;
   }
 
   .college-card {
@@ -180,10 +207,7 @@
   }
 }
 
-/* MOBILE */
-
 @media (max-width: 480px) {
-
   .overall-page {
     padding: 14px;
   }
@@ -192,7 +216,6 @@
     font-size: 20px;
   }
 
-  /* stack controls */
   .overall-actions {
     flex-direction: column;
     align-items: stretch;
@@ -202,6 +225,7 @@
   .export-btn,
   .input {
     width: 100%;
+    justify-content: center;
   }
 
   .overall-table th,

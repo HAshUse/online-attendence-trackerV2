@@ -1,23 +1,16 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import teacherRoutes from "./routes/teacherRoutes.js";
 import classRoutes from "./routes/classRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import branchRoutes from "./routes/branchRoutes.js";
 import branchAnalyticsRoutes from "./routes/branchAnalyticsRoutes.js";
+import googleAuthRoutes from "./routes/googleAuthRoutes.js";
 import cron from "node-cron";
 import { checkLowAttendance } from "./services/attendanceChecker.js";
 
-
-
-
-
-
-
-
-dotenv.config();
 connectDB();
 
 const app = express();
@@ -39,6 +32,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/classes", classRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/branches", branchAnalyticsRoutes);
+app.use("/api/auth/google", googleAuthRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>

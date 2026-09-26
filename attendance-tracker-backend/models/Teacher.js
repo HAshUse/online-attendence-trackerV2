@@ -16,9 +16,14 @@ const teacherSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true
-    }
+    },
+    // Google OAuth
+    googleAccessToken: { type: String },
+    googleRefreshToken: { type: String },
+    googleTokenExpiry: { type: Number },
+    googleEmail: { type: String },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Teacher", teacherSchema);
+export default mongoose.model("Teacher", teacherSchema);

@@ -41,6 +41,12 @@ const classSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       required: true
+    },
+
+    accessType: {
+      type: String,
+      enum: ["open", "restricted"],
+      default: "open"
     }
   },
   { timestamps: true }
