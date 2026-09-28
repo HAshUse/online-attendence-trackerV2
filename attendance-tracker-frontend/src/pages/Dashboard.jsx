@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
 import { useNavigate, useParams } from "react-router-dom";
-import "./Dashboard.css";
 
 function Dashboard() {
   const [classes, setClasses] = useState([]);
@@ -85,28 +84,37 @@ function Dashboard() {
   };
 
   return (
-    <div className="dashboard-page">
+    <div className="p-5 sm:p-9 bg-[var(--bg)] min-h-screen transition-colors duration-200 max-w-[1180px] mx-auto">
       {/* TOP HEADER */}
-      <div className="dashboard-header">
-        <div className="dashboard-header-left">
+      <div className="flex items-start sm:items-center justify-between mb-7 gap-4 flex-col sm:flex-row flex-wrap">
+        <div className="flex items-center gap-4">
           <div>
-            <h2 className="dashboard-title">{branchName} Classes</h2>
-            <p className="dashboard-subtitle">
+            <h2 className="text-2xl sm:text-[26px] font-extrabold text-[var(--text)] tracking-tight m-0">
+              {branchName} Classes
+            </h2>
+            <p className="text-[13.5px] text-[var(--subtext)] mt-1">
               Manage class sessions, attendance links, and Google Meet meetings
             </p>
           </div>
         </div>
 
-        <div className="dashboard-header-actions">
+        <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto justify-between sm:justify-start">
           <button
-            className="btn btn-secondary"
+            className="border border-[var(--border)] py-2.5 px-4.5 rounded-lg cursor-pointer font-semibold text-[13.5px] transition-all duration-200 inline-flex items-center gap-1.5 bg-[var(--card)] text-[var(--text)] hover:bg-[var(--card-hover)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            onClick={() => navigate(`/branch/${branchId}`)}
+          >
+            📈 Analytics
+          </button>
+
+          <button
+            className="border border-[var(--border)] py-2.5 px-4.5 rounded-lg cursor-pointer font-semibold text-[13.5px] transition-all duration-200 inline-flex items-center gap-1.5 bg-[var(--card)] text-[var(--text)] hover:bg-[var(--card-hover)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
             onClick={() => navigate(`/overall-attendance/${branchId}`)}
           >
             📊 Overall Attendance
           </button>
 
           <button
-            className="btn btn-primary"
+            className="border-0 py-2.5 px-4.5 rounded-lg cursor-pointer font-semibold text-[13.5px] transition-all duration-200 inline-flex items-center gap-1.5 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white shadow-[0_2px_10px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(99,102,241,0.45)]"
             onClick={() => navigate(`/create-class/${branchId}`)}
           >
             + Create Class
@@ -116,12 +124,14 @@ function Dashboard() {
 
       {/* EMPTY STATE */}
       {classes.length === 0 && (
-        <div className="empty-classes-card">
-          <div className="empty-icon">📚</div>
-          <h3>No classes created yet in {branchName}</h3>
-          <p>Schedule your first class session to generate meet links and track student attendance.</p>
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-10 sm:p-14 text-center max-w-[600px] my-10 mx-auto shadow-[var(--shadow-sm)]">
+          <div className="text-4xl mb-3">📚</div>
+          <h3 className="text-lg font-bold text-[var(--text)] mb-2">No classes created yet in {branchName}</h3>
+          <p className="text-[var(--subtext)] text-sm mb-5 leading-relaxed">
+            Schedule your first class session to generate meet links and track student attendance.
+          </p>
           <button
-            className="btn btn-primary"
+            className="border-0 py-2.5 px-4.5 rounded-lg cursor-pointer font-semibold text-[13.5px] transition-all duration-200 inline-flex items-center gap-1.5 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white shadow-[0_2px_10px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(99,102,241,0.45)]"
             onClick={() => navigate(`/create-class/${branchId}`)}
           >
             + Create First Class
@@ -130,7 +140,7 @@ function Dashboard() {
       )}
 
       {/* 3-COLUMN CLASS CARDS GRID */}
-      <div className="classes-grid">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5.5 w-full">
         {classes.map((cls) => {
           const isMenuOpen = menuOpenId === cls._id;
           const isCopied = copiedId === cls.classCode;
@@ -140,27 +150,45 @@ function Dashboard() {
           return (
             <div
               key={cls._id}
-              className="codeguru-card class-card-item"
+              className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] overflow-hidden transition-all duration-200 flex flex-col relative cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] hover:border-emerald-500/40"
               onClick={(e) => handleCardClick(e, cls._id)}
             >
               {/* Top Accent Bar */}
-              <div className={`card-top-accent ${isExpired ? "accent-expired" : ""}`} />
+              <div
+                className={`h-[4.5px] w-full ${
+                  isExpired
+                    ? "bg-gradient-to-r from-slate-400 to-slate-300"
+                    : "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                }`}
+              />
 
-              <div className="card-inner">
+              <div className="p-5 sm:p-5.5 flex flex-col flex-1 justify-between">
                 {/* Header Row: Subject Tag, Status, 3-Dots Menu */}
-                <div className="card-header-row">
-                  <div className="card-tags">
-                    <span className="card-tag">{formattedTag}</span>
-                    <span className={`card-status-badge ${isExpired ? "status-expired" : ""}`}>
-                      <span className={`status-dot ${isExpired ? "dot-expired" : ""}`}></span>
+                <div className="flex items-center justify-between mb-4 gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="bg-[var(--bg-secondary)] text-[var(--subtext)] text-[10.5px] font-bold uppercase py-1 px-2.5 rounded-md tracking-wider border border-[var(--border)]">
+                      {formattedTag}
+                    </span>
+                    <span
+                      className={`text-[11px] font-bold py-0.5 px-2.5 rounded-full inline-flex items-center gap-1.5 ${
+                        isExpired
+                          ? "bg-slate-400/15 text-[var(--subtext)]"
+                          : "bg-emerald-500/10 text-emerald-500"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          isExpired ? "bg-slate-400" : "bg-emerald-500"
+                        }`}
+                      ></span>
                       {isExpired ? "Expired" : "Active"}
                     </span>
                   </div>
 
                   {/* 3-Dots Menu */}
-                  <div className="card-menu-wrapper">
+                  <div className="card-menu-wrapper relative">
                     <button
-                      className="menu-trigger-btn"
+                      className="bg-transparent border-0 text-[var(--subtext)] text-lg w-7.5 h-7.5 rounded-md cursor-pointer flex items-center justify-center transition-colors hover:bg-[var(--bg-secondary)] hover:text-[var(--text)]"
                       onClick={(e) => {
                         e.stopPropagation();
                         setMenuOpenId(isMenuOpen ? null : cls._id);
@@ -172,8 +200,9 @@ function Dashboard() {
                     </button>
 
                     {isMenuOpen && (
-                      <div className="card-dropdown-menu">
+                      <div className="absolute top-8.5 right-0 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-[var(--shadow-lg)] w-50 p-1.5 z-50 animate-[fadeIn_0.15s_ease-out]">
                         <button
+                          className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--text)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--bg-secondary)]"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/class/${cls._id}`);
@@ -182,6 +211,7 @@ function Dashboard() {
                           👁️ View Attendance
                         </button>
                         <button
+                          className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--text)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--bg-secondary)]"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/edit-class/${cls._id}`);
@@ -194,15 +224,15 @@ function Dashboard() {
                             href={cls.meetLink}
                             target="_blank"
                             rel="noreferrer"
-                            className="dropdown-link"
+                            className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--text)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--bg-secondary)] no-underline"
                             onClick={(e) => e.stopPropagation()}
                           >
                             🎥 Join Google Meet
                           </a>
                         )}
-                        <div className="dropdown-divider"></div>
+                        <div className="h-px bg-[var(--border)] my-1" />
                         <button
-                          className="danger-item"
+                          className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--danger)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--danger-light)]"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(cls._id);
@@ -216,17 +246,19 @@ function Dashboard() {
                 </div>
 
                 {/* Body: Title & Details */}
-                <div className="card-body">
-                  <h3 className="card-title">{cls.className}</h3>
-                  <p className="card-desc">
-                    Code: <span className="code-badge">{cls.classCode}</span>
+                <div className="mb-5.5">
+                  <h3 className="text-[18.5px] font-extrabold text-[var(--text)] mb-2 transition-colors leading-tight">
+                    {cls.className}
+                  </h3>
+                  <p className="text-[13px] text-[var(--subtext)] leading-relaxed m-0">
+                    Code: <span className="font-bold text-[var(--primary)] bg-[var(--primary-light)] py-0.5 px-2 rounded">{cls.classCode}</span>
                   </p>
                 </div>
 
                 {/* Footer Row: Copy Link & View Action */}
-                <div className="card-footer-row">
+                <div className="flex items-center justify-between pt-3.5 border-t border-[var(--border)] gap-2.5">
                   <button
-                    className="copy-link-btn"
+                    className="copy-link-btn bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-xs font-semibold py-1.5 px-3 rounded-lg cursor-pointer transition-colors hover:bg-[var(--card-hover)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
                     onClick={(e) => handleCopyLink(cls.classCode, e)}
                     title="Copy student join link"
                   >
@@ -234,7 +266,7 @@ function Dashboard() {
                   </button>
 
                   <button
-                    className="card-action-link"
+                    className="bg-transparent border-0 text-[var(--primary)] text-[13.5px] font-bold cursor-pointer inline-flex items-center gap-1 transition-all duration-200 p-0 hover:text-[var(--primary-hover)] hover:translate-x-1"
                     onClick={() => navigate(`/class/${cls._id}`)}
                   >
                     View Attendance →
@@ -250,3 +282,4 @@ function Dashboard() {
 }
 
 export default Dashboard;
+

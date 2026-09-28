@@ -8,6 +8,7 @@ import attendanceRoutes from "./routes/attendanceRoutes.js";
 import branchRoutes from "./routes/branchRoutes.js";
 import branchAnalyticsRoutes from "./routes/branchAnalyticsRoutes.js";
 import googleAuthRoutes from "./routes/googleAuthRoutes.js";
+import collegeRoutes from "./routes/collegeRoutes.js";
 import cron from "node-cron";
 import { checkLowAttendance } from "./services/attendanceChecker.js";
 
@@ -33,6 +34,7 @@ app.use("/api/classes", classRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/branches", branchAnalyticsRoutes);
 app.use("/api/auth/google", googleAuthRoutes);
+app.use("/api/colleges", collegeRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>

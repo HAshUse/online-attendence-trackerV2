@@ -48,6 +48,8 @@ import EditClass from "./pages/EditClass";
 import TeacherLayout from "./layout/TeacherLayout";
 import BranchDashboard from "./pages/BranchDashboard";
 import Branches from "./pages/Branches";
+import Colleges from "./pages/Colleges";
+
 function App() {
   return (
     <BrowserRouter>
@@ -66,6 +68,7 @@ function App() {
           <Route path="/edit-class/:id" element={<EditClass />} />
           <Route path="/branches" element={<Branches />} />
           <Route path="/branch/:branchId" element={<BranchDashboard />} />
+          <Route path="/colleges" element={<Colleges />} />
         </Route>
 
       </Routes>

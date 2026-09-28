@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../services/api";
-import "./ClassAttendance.css";
 
 function ClassAttendance() {
   const { id } = useParams();
@@ -117,27 +116,41 @@ function ClassAttendance() {
 
   /* ================= UI ================= */
 
-  if (loading) return <div className="loading">Loading attendance...</div>;
+  if (loading) {
+    return (
+      <div className="text-center font-medium text-[var(--subtext)] mt-16 text-base">
+        Loading attendance...
+      </div>
+    );
+  }
 
   return (
-    <div className="page">
+    <div className="min-h-screen bg-[var(--bg)] px-4 py-7 sm:px-6 md:px-8 transition-colors duration-200">
 
-      <h2>Class Attendance</h2>
+      <h2 className="text-center mb-7 text-2xl font-bold text-[var(--text)] tracking-tight">
+        Class Attendance
+      </h2>
 
       {/* TOP ACTIONS */}
-      <div className="card">
+      <div className="bg-[var(--card)] p-5 rounded-2xl border border-[var(--border)] shadow-sm mb-6 transition-colors duration-200 flex flex-col gap-3">
         {/* Row 1: Back + Download Full + Google Sheet */}
-        <div className="action-row">
-          <button className="btn" onClick={() => navigate(-1)}>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button 
+            className="px-4 py-2.5 rounded-lg bg-[var(--primary)] text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-[var(--primary-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 cursor-pointer" 
+            onClick={() => navigate(-1)}
+          >
             ← Back to Dashboard
           </button>
 
-          <button className="btn" onClick={handleExportAll}>
+          <button 
+            className="px-4 py-2.5 rounded-lg bg-[var(--primary)] text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-[var(--primary-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 cursor-pointer" 
+            onClick={handleExportAll}
+          >
             📥 Download Excel
           </button>
 
           <button 
-            className="btn google-sheet-btn" 
+            className="px-4 py-2.5 rounded-lg bg-[#0f9d58] hover:bg-[#0b8043] text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none inline-flex items-center gap-1.5 cursor-pointer" 
             onClick={handleExportGoogleSheet}
             disabled={exportingSheet || attendance.length === 0}
           >
@@ -146,11 +159,11 @@ function ClassAttendance() {
         </div>
 
         {/* Row 2: College select + Download Selected */}
-        <div className="action-row college-row">
+        <div className="flex items-center gap-2.5 flex-wrap pt-3 border-t border-[var(--border)]">
           <select
             value={selectedCollege}
             onChange={(e) => setSelectedCollege(e.target.value)}
-            className="college-select"
+            className="flex-1 min-w-[180px] px-3 py-2 text-sm border-[1.5px] border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--text)] outline-none cursor-pointer transition-all duration-200 focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-indigo-500/20"
           >
             <option value="">Select College</option>
             {Object.keys(collegeStudents).sort().map(college => (
@@ -158,7 +171,11 @@ function ClassAttendance() {
             ))}
           </select>
 
-          <button className="btn" onClick={handleCollegeExport} disabled={!selectedCollege}>
+          <button 
+            className="px-4 py-2.5 rounded-lg bg-[var(--primary)] text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-[var(--primary-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none cursor-pointer" 
+            onClick={handleCollegeExport} 
+            disabled={!selectedCollege}
+          >
             Download Selected College
           </button>
         </div>
@@ -166,43 +183,45 @@ function ClassAttendance() {
 
       {/* NO DATA */}
       {attendance.length === 0 && (
-        <div className="card">
-          <h3>No Attendance Yet</h3>
-          <p>No students have joined this class yet.</p>
+        <div className="bg-[var(--card)] p-8 rounded-2xl border border-[var(--border)] shadow-sm mb-6 transition-colors duration-200 text-center">
+          <h3 className="text-base font-bold text-[var(--text)] mb-1">No Attendance Yet</h3>
+          <p className="text-sm text-[var(--subtext)]">No students have joined this class yet.</p>
         </div>
       )}
 
       {/* RAW RECORDS */}
       {attendance.length > 0 && (
-        <div className="card">
-          <h3>Attendance Records</h3>
-          <div className="table-wrapper">
-            <table className="table">
+        <div className="bg-[var(--card)] p-5 rounded-2xl border border-[var(--border)] shadow-sm mb-6 transition-colors duration-200 flex flex-col gap-3">
+          <h3 className="text-base sm:text-lg font-bold text-[var(--text)] flex items-center gap-2 before:content-[''] before:inline-block before:w-1 before:h-4.5 before:bg-gradient-to-b before:from-[var(--primary)] before:to-purple-400 before:rounded-full">
+            Attendance Records
+          </h3>
+          <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+            <table className="w-full min-w-[600px] border-collapse bg-[var(--card)] text-left">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Group</th>
-                  <th>College</th>
-                  <th>Date</th>
-                  <th>Time</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">#</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Name</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Email</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Group</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">College</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Date</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Time</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[var(--border)]">
                 {attendance.map((record, i) => {
                   if (!record.student) return null;
                   const d = new Date(record.createdAt);
 
                   return (
-                    <tr key={record._id}>
-                      <td>{i + 1}</td>
-                      <td>{record.student.fullName}</td>
-                      <td>{record.student.email}</td>
-                      <td>{record.student.group}</td>
-                      <td>{record.student.college}</td>
-                      <td>{d.toLocaleDateString()}</td>
-                      <td>{d.toLocaleTimeString()}</td>
+                    <tr key={record._id} className="hover:bg-[var(--bg-secondary)] transition-colors duration-150">
+                      <td className="px-4 py-3 text-sm text-[var(--text)]">{i + 1}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-[var(--text)]">{record.student.fullName}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--subtext)]">{record.student.email}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text)]">{record.student.group}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text)]">{record.student.college}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--subtext)]">{d.toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--subtext)]">{d.toLocaleTimeString()}</td>
                     </tr>
                   );
                 })}
@@ -212,37 +231,38 @@ function ClassAttendance() {
         </div>
       )}
 
-      {/* SUMMARY */}
-      
-
       {/* COLLEGE WISE */}
       {Object.keys(collegeStudents).length > 0 && (
-        <div className="card">
-          <h3>College Wise Students</h3>
+        <div className="bg-[var(--card)] p-5 rounded-2xl border border-[var(--border)] shadow-sm mb-6 transition-colors duration-200 flex flex-col gap-4">
+          <h3 className="text-base sm:text-lg font-bold text-[var(--text)] flex items-center gap-2 before:content-[''] before:inline-block before:w-1 before:h-4.5 before:bg-gradient-to-b before:from-[var(--primary)] before:to-purple-400 before:rounded-full">
+            College Wise Students
+          </h3>
 
           {Object.keys(collegeStudents).sort().map(college => (
-            <div key={college} className="college">
-              <h4>{college}</h4>
+            <div key={college} className="border-l-4 border-[var(--primary)] pl-4 mb-6">
+              <h4 className="mt-2 mb-2.5 text-xs sm:text-sm text-[var(--subtext)] font-semibold uppercase tracking-wider">
+                {college}
+              </h4>
 
-              <div className="table-wrapper">
-                <table className="table">
+              <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+                <table className="w-full min-w-[600px] border-collapse bg-[var(--card)] text-left">
                   <thead>
                     <tr>
-                      <th>#</th>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Group</th>
-                      <th>Joined</th>
+                      <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">#</th>
+                      <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Name</th>
+                      <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Email</th>
+                      <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Group</th>
+                      <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Joined</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-[var(--border)]">
                     {collegeStudents[college].map((s, i) => (
-                      <tr key={i}>
-                        <td>{i + 1}</td>
-                        <td>{s.fullName}</td>
-                        <td>{s.email}</td>
-                        <td>{s.group}</td>
-                        <td><b>{s.joinCount}</b></td>
+                      <tr key={i} className="hover:bg-[var(--bg-secondary)] transition-colors duration-150">
+                        <td className="px-4 py-3 text-sm text-[var(--text)]">{i + 1}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-[var(--text)]">{s.fullName}</td>
+                        <td className="px-4 py-3 text-sm text-[var(--subtext)]">{s.email}</td>
+                        <td className="px-4 py-3 text-sm text-[var(--text)]">{s.group}</td>
+                        <td className="px-4 py-3 text-sm font-bold text-[var(--text)]">{s.joinCount}</td>
                       </tr>
                     ))}
                   </tbody>

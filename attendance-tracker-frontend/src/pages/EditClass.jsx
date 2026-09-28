@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../services/api";
-import "./CreateClass.css";
 
 // Convert "HH:MM" (24h) to 12-hour object { hour, minute, period }
 const parse24 = (timeStr) => {
@@ -42,51 +41,59 @@ function TimePickerInput({ label, value, onChange }) {
   };
 
   return (
-    <div className="custom-time-picker">
-      <span className="time-picker-label">
+    <div className="flex flex-col gap-1.5">
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text)]">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10"/>
           <polyline points="12 6 12 12 16 14"/>
         </svg>
         {label}
       </span>
-      <div className="time-picker-box">
+      <div className="flex items-center gap-1 bg-[var(--bg)] border-[1.5px] border-[var(--border)] rounded-lg p-1 transition-all focus-within:border-[var(--border-focus)] focus-within:bg-[var(--card)] focus-within:ring-2 focus-within:ring-[var(--primary-light)]">
         {/* Hour */}
         <select
-          className="time-select"
+          className="flex-1 bg-transparent border-0 outline-none text-sm font-bold text-[var(--text)] py-1.5 px-0.5 text-center cursor-pointer rounded hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)]"
           value={hour}
           onChange={(e) => handleHourChange(e.target.value)}
         >
           {hoursList.map((h) => (
-            <option key={h} value={h}>{h}</option>
+            <option key={h} value={h} className="bg-[var(--card)] text-[var(--text)]">{h}</option>
           ))}
         </select>
 
-        <span className="time-sep">:</span>
+        <span className="text-sm font-extrabold text-[var(--subtext)] select-none">:</span>
 
         {/* Minute */}
         <select
-          className="time-select"
+          className="flex-1 bg-transparent border-0 outline-none text-sm font-bold text-[var(--text)] py-1.5 px-0.5 text-center cursor-pointer rounded hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)]"
           value={minute}
           onChange={(e) => handleMinuteChange(e.target.value)}
         >
           {minutesList.map((m) => (
-            <option key={m} value={m}>{m}</option>
+            <option key={m} value={m} className="bg-[var(--card)] text-[var(--text)]">{m}</option>
           ))}
         </select>
 
         {/* AM / PM Segmented Control */}
-        <div className="period-toggle">
+        <div className="inline-flex bg-[var(--bg-secondary)] rounded-md p-0.5 gap-0.5">
           <button
             type="button"
-            className={`period-btn ${period === "AM" ? "active" : ""}`}
+            className={`border-0 text-[11px] font-bold py-1 px-1.5 rounded cursor-pointer transition-all leading-none ${
+              period === "AM"
+                ? "bg-[var(--primary)] text-white shadow-[0_1px_4px_rgba(99,102,241,0.4)]"
+                : "bg-transparent text-[var(--subtext)]"
+            }`}
             onClick={() => handlePeriodChange("AM")}
           >
             AM
           </button>
           <button
             type="button"
-            className={`period-btn ${period === "PM" ? "active" : ""}`}
+            className={`border-0 text-[11px] font-bold py-1 px-1.5 rounded cursor-pointer transition-all leading-none ${
+              period === "PM"
+                ? "bg-[var(--primary)] text-white shadow-[0_1px_4px_rgba(99,102,241,0.4)]"
+                : "bg-transparent text-[var(--subtext)]"
+            }`}
             onClick={() => handlePeriodChange("PM")}
           >
             PM
@@ -300,9 +307,9 @@ function EditClass() {
 
   if (loading) {
     return (
-      <div className="create-page">
-        <div className="loading-state">
-          <div className="spinner"></div>
+      <div className="min-h-[calc(100vh-64px)] bg-[var(--bg)] flex justify-center items-center p-5 sm:p-9 transition-colors duration-200">
+        <div className="flex flex-col items-center justify-center gap-3.5 p-10 text-[var(--subtext)] text-sm">
+          <div className="w-8 h-8 border-3 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin"></div>
           <p>Loading class details...</p>
         </div>
       </div>
@@ -310,24 +317,26 @@ function EditClass() {
   }
 
   return (
-    <div className="create-page">
-      <div className="create-card">
+    <div className="min-h-[calc(100vh-64px)] bg-[var(--bg)] flex justify-center items-center p-5 sm:p-9 transition-colors duration-200">
+      <div className="bg-[var(--card)] p-6 sm:p-8.5 rounded-3xl w-full max-w-[500px] border border-[var(--border)] shadow-[var(--shadow-lg)] transition-all duration-200">
         {/* HEADER */}
-        <h2>Edit Class Session</h2>
-        <p className="create-subtitle">
+        <h2 className="text-center mb-1 text-xl sm:text-[23px] font-extrabold text-[var(--text)] tracking-tight">
+          Edit Class Session
+        </h2>
+        <p className="text-center text-[13px] text-[var(--subtext)] mb-6 leading-relaxed">
           Update class schedule, timings, Google Meet link, and access privacy
         </p>
 
         {/* CLASS CODE & SHARE BANNER */}
         {form.classCode && (
-          <div className="class-code-banner">
-            <div className="code-info">
-              <span className="code-label">CLASS CODE</span>
-              <span className="code-val">{form.classCode}</span>
+          <div className="flex items-center justify-between bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-2.5 sm:p-3.5 mb-5">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-bold text-[var(--subtext)] tracking-wider">CLASS CODE</span>
+              <span className="text-base font-extrabold text-[var(--primary)] tracking-widest">{form.classCode}</span>
             </div>
             <button
               type="button"
-              className="copy-share-btn"
+              className="bg-[var(--card)] border border-[var(--border)] text-[var(--text)] text-xs font-semibold py-1.5 px-3 rounded-lg cursor-pointer transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
               onClick={handleCopyJoinLink}
             >
               {copiedLink ? "✓ Link Copied" : "📋 Copy Join Link"}
@@ -337,41 +346,43 @@ function EditClass() {
 
         <form onSubmit={handleSubmit}>
           {/* Class Name */}
-          <div className="form-group">
-            <label>Class Name</label>
+          <div className="mb-4.5 flex flex-col gap-1.5">
+            <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Class Name</label>
             <input
               name="className"
               placeholder="Ex: React Hooks & State Management"
               value={form.className}
               onChange={handleChange}
+              className="w-full py-2.5 px-3.5 border-[1.5px] border-[var(--border)] rounded-lg text-[13.5px] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
               required
             />
           </div>
 
           {/* Subject */}
-          <div className="form-group">
-            <label>Subject</label>
+          <div className="mb-4.5 flex flex-col gap-1.5">
+            <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Subject</label>
             <input
               name="subject"
               placeholder="Ex: Web Development"
               value={form.subject}
               onChange={handleChange}
+              className="w-full py-2.5 px-3.5 border-[1.5px] border-[var(--border)] rounded-lg text-[13.5px] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
               required
             />
           </div>
 
           {/* Branch Switcher (if multiple exist) */}
           {branches.length > 0 && (
-            <div className="form-group">
-              <label>Branch</label>
+            <div className="mb-4.5 flex flex-col gap-1.5">
+              <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Branch</label>
               <select
                 name="branchId"
-                className="input"
+                className="w-full py-2.5 px-3.5 border-[1.5px] border-[var(--border)] rounded-lg text-[13.5px] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)] cursor-pointer"
                 value={form.branchId}
                 onChange={handleChange}
               >
                 {branches.map((b) => (
-                  <option key={b._id} value={b._id}>
+                  <option key={b._id} value={b._id} className="bg-[var(--card)] text-[var(--text)]">
                     {b.name}
                   </option>
                 ))}
@@ -380,43 +391,43 @@ function EditClass() {
           )}
 
           {/* Date of Class */}
-          <div className="form-group">
-            <div className="label-row">
-              <label>Date of Class</label>
-              <div className="quick-date-pills">
+          <div className="mb-4.5 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Date of Class</label>
+              <div className="flex gap-1.5">
                 <button
                   type="button"
-                  className="quick-pill"
+                  className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--subtext)] py-0.5 px-2.5 rounded-full text-[11px] font-semibold cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
                   onClick={() => setQuickDate("today")}
                 >
                   Today
                 </button>
                 <button
                   type="button"
-                  className="quick-pill"
+                  className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--subtext)] py-0.5 px-2.5 rounded-full text-[11px] font-semibold cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
                   onClick={() => setQuickDate("tomorrow")}
                 >
                   Tomorrow
                 </button>
               </div>
             </div>
-            <div className="date-input-wrapper">
+            <div className="relative flex flex-col gap-1">
               <input
                 type="date"
                 name="classDate"
-                className="custom-date-input"
+                className="w-full py-2.5 px-3.5 border-[1.5px] border-[var(--border)] rounded-lg text-[13.5px] font-semibold bg-[var(--bg)] text-[var(--text)] outline-none cursor-pointer transition-all duration-200 focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
                 value={form.classDate}
                 onChange={handleChange}
                 required
               />
-              <span className="date-human-preview">{formatDateDisplay(form.classDate)}</span>
+              <span className="text-[11.5px] font-medium text-[var(--primary)] pl-0.5">{formatDateDisplay(form.classDate)}</span>
             </div>
           </div>
 
           {/* Timings: Start & End Time */}
-          <div className="form-group">
-            <div className="form-row">
-              <div className="flex-1">
+          <div className="mb-4.5 flex flex-col gap-1.5">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 min-w-0">
                 <TimePickerInput
                   label="Start Time"
                   value={form.startTime}
@@ -424,7 +435,7 @@ function EditClass() {
                 />
               </div>
 
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <TimePickerInput
                   label="End Time (Expiry)"
                   value={form.endTime}
@@ -434,63 +445,67 @@ function EditClass() {
             </div>
 
             {/* Quick Duration & Extension Chips */}
-            <div className="duration-row">
-              <span className="duration-title">Duration:</span>
-              <button type="button" className="duration-chip" onClick={() => applyDuration(45)}>
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <span className="text-[11px] font-semibold text-[var(--subtext)]">Duration:</span>
+              <button type="button" className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)] hover:-translate-y-0.5 active:scale-95" onClick={() => applyDuration(45)}>
                 45m
               </button>
-              <button type="button" className="duration-chip" onClick={() => applyDuration(60)}>
+              <button type="button" className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)] hover:-translate-y-0.5 active:scale-95" onClick={() => applyDuration(60)}>
                 1h
               </button>
-              <button type="button" className="duration-chip" onClick={() => applyDuration(90)}>
+              <button type="button" className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)] hover:-translate-y-0.5 active:scale-95" onClick={() => applyDuration(90)}>
                 1.5h
               </button>
-              <button type="button" className="duration-chip" onClick={() => applyDuration(120)}>
+              <button type="button" className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)] hover:-translate-y-0.5 active:scale-95" onClick={() => applyDuration(120)}>
                 2h
               </button>
-              <span className="duration-divider">|</span>
-              <span className="duration-title">Extend:</span>
-              <button type="button" className="duration-chip extend-chip" onClick={() => extendTime(30)}>
+              <span className="text-[var(--border)] text-[13px] mx-0.5">|</span>
+              <span className="text-[11px] font-semibold text-[var(--subtext)]">Extend:</span>
+              <button type="button" className="bg-emerald-500/10 text-[var(--success)] border border-emerald-500/30 text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-emerald-500/20 hover:border-[var(--success)] hover:-translate-y-0.5 active:scale-95" onClick={() => extendTime(30)}>
                 +30m
               </button>
-              <button type="button" className="duration-chip extend-chip" onClick={() => extendTime(60)}>
+              <button type="button" className="bg-emerald-500/10 text-[var(--success)] border border-emerald-500/30 text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-emerald-500/20 hover:border-[var(--success)] hover:-translate-y-0.5 active:scale-95" onClick={() => extendTime(60)}>
                 +1h
               </button>
             </div>
           </div>
 
           {/* Meeting Access Mode: Visual Cards (Public vs Private) */}
-          <div className="form-group">
-            <label>Meeting Privacy & Access Mode</label>
-            <div className="access-options-grid">
+          <div className="mb-4.5 flex flex-col gap-1.5">
+            <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Meeting Privacy & Access Mode</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div
-                className={`access-card ${form.accessType === "open" ? "active" : ""}`}
+                className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
+                  form.accessType === "open" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
+                }`}
                 onClick={() => setForm({ ...form, accessType: "open" })}
                 role="button"
                 tabIndex={0}
               >
-                <div className="access-card-head">
-                  <span className="access-icon">🌐</span>
-                  <span className="access-title">Public / Open</span>
-                  <span className="access-radio"></span>
+                <div className="flex items-center gap-2">
+                  <span className="text-base shrink-0">🌐</span>
+                  <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Public / Open</span>
+                  <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "open" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
                 </div>
-                <p className="access-desc">
+                <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
                   Students join directly without host approval
                 </p>
               </div>
 
               <div
-                className={`access-card ${form.accessType === "restricted" ? "active" : ""}`}
+                className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
+                  form.accessType === "restricted" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
+                }`}
                 onClick={() => setForm({ ...form, accessType: "restricted" })}
                 role="button"
                 tabIndex={0}
               >
-                <div className="access-card-head">
-                  <span className="access-icon">🔒</span>
-                  <span className="access-title">Private / Restricted</span>
-                  <span className="access-radio"></span>
+                <div className="flex items-center gap-2">
+                  <span className="text-base shrink-0">🔒</span>
+                  <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Private / Restricted</span>
+                  <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "restricted" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
                 </div>
-                <p className="access-desc">
+                <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
                   Host approval required for each student
                 </p>
               </div>
@@ -498,15 +513,15 @@ function EditClass() {
           </div>
 
           {/* Google Meet Link */}
-          <div className="form-group">
-            <div className="label-row">
-              <label>Google Meet Link</label>
+          <div className="mb-4.5 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Google Meet Link</label>
               {form.meetLink && (
                 <a
                   href={form.meetLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="test-link"
+                  className="text-[11.5px] font-semibold text-[var(--primary)] hover:underline opacity-90 transition-opacity"
                 >
                   🚀 Test Link
                 </a>
@@ -517,14 +532,15 @@ function EditClass() {
               placeholder="https://meet.google.com/xyz-abc-def"
               value={form.meetLink}
               onChange={handleChange}
+              className="w-full py-2.5 px-3.5 border-[1.5px] border-[var(--border)] rounded-lg text-[13.5px] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
               required
             />
 
             {/* Auto-generate with Google Calendar */}
-            <div className="meet-action-row">
+            <div className="mt-1.5">
               <button
                 type="button"
-                className="btn-regenerate-meet"
+                className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text)] text-[12.5px] font-semibold cursor-pointer transition-all hover:border-[#4285F4] hover:text-[#4285F4] hover:bg-[var(--card-hover)] disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleRegenerateMeet}
                 disabled={regenerating}
               >
@@ -546,17 +562,17 @@ function EditClass() {
           </div>
 
           {/* BUTTONS */}
-          <div className="edit-actions-row">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 mt-2.5">
             <button
               type="button"
-              className="btn-cancel"
+              className="flex-1 py-3 px-4 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] rounded-lg text-sm font-semibold cursor-pointer transition-all hover:bg-[var(--card-hover)] hover:border-[var(--subtext)]"
               onClick={() => navigate(form.branchId ? `/dashboard/${form.branchId}` : "/branches")}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn-submit"
+              className="flex-2 py-3 px-4 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-lg text-[14.5px] font-bold cursor-pointer transition-all duration-200 shadow-[0_4px_14px_rgba(99,102,241,0.35)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)] disabled:opacity-60 disabled:cursor-not-allowed"
               disabled={submitting}
             >
               {submitting ? "Saving Changes..." : "Save Changes"}
@@ -569,3 +585,4 @@ function EditClass() {
 }
 
 export default EditClass;
+
