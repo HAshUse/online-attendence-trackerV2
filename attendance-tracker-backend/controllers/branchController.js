@@ -57,11 +57,29 @@ export const createBranch = async (req, res) => {
   }
 };
 
+const DEFAULT_BRANCHES = [
+  { name: "Web Development", year: "2026 Batch" },
+  { name: "Product Design", year: "2026 Batch" },
+  { name: "Data Analytics", year: "2026 Batch" }
+];
+
 /* GET MY BRANCHES */
 export const getMyBranches = async (req, res) => {
   try {
-    const branches = await Branch.find({ teacher: req.user._id })
-      .sort({ createdAt: -1 });
+    let branches = await Branch.find({ teacher: req.user._id })
+      .sort({ createdAt: 1 });
+
+    // Auto-seed default branches if teacher has no branches
+    if (branches.length === 0) {
+      const branchesToCreate = DEFAULT_BRANCHES.map((b) => ({
+        name: b.name,
+        year: b.year,
+        teacher: req.user._id
+      }));
+
+      await Branch.insertMany(branchesToCreate);
+      branches = await Branch.find({ teacher: req.user._id }).sort({ createdAt: 1 });
+    }
 
     const branchesWithStats = await Promise.all(
       branches.map(async (b) => {
