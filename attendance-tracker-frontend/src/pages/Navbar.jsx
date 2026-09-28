@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import logo from "../assets/logo.png";
 import { useTheme } from "../context/ThemeContext";
@@ -6,12 +6,33 @@ import API from "../services/api";
 
 function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [googleStatus, setGoogleStatus] = useState({ connected: false, googleEmail: null });
   const { dark, setDark } = useTheme();
   const profileRef = useRef(null);
 
-  const teacher = JSON.parse(localStorage.getItem("teacher"));
+  const [authTeacher, setAuthTeacher] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("teacher"));
+    } catch {
+      return null;
+    }
+  });
+
+  const [hasToken, setHasToken] = useState(() => !!localStorage.getItem("token"));
+
+  // Re-sync auth state on every route change
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setHasToken(!!token);
+    try {
+      setAuthTeacher(JSON.parse(localStorage.getItem("teacher")));
+    } catch {
+      setAuthTeacher(null);
+    }
+    setOpen(false);
+  }, [location.pathname]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -25,14 +46,17 @@ function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  // Check Google connection status
+  // Check Google connection status if logged in
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      setGoogleStatus({ connected: false, googleEmail: null });
+      return;
+    }
     API.get("/auth/google/status")
       .then((res) => setGoogleStatus(res.data))
       .catch(() => {});
-  }, []);
+  }, [hasToken, location.pathname]);
 
   // Handle Google connect success redirect
   useEffect(() => {
@@ -48,6 +72,10 @@ function Navbar() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("teacher");
+    setHasToken(false);
+    setAuthTeacher(null);
+    setOpen(false);
+    setGoogleStatus({ connected: false, googleEmail: null });
     navigate("/");
   };
 
@@ -154,35 +182,51 @@ function Navbar() {
           )}
         </button>
 
-        {/* Profile */}
-        <div
-          className="flex items-center gap-2.5 cursor-pointer py-1.5 px-2.5 pl-1.5 rounded-xl border border-transparent hover:bg-[var(--bg-secondary)] hover:border-[var(--border)] transition-all duration-200"
-          onClick={() => setOpen(!open)}
-        >
-          <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-[var(--primary)] to-purple-400 text-white flex items-center justify-center font-bold text-[15px] shrink-0 shadow-[0_2px_8px_rgba(99,102,241,0.35)]">
-            {teacher?.name?.charAt(0).toUpperCase() || "T"}
+        {/* Profile / Login Button */}
+        {hasToken && authTeacher ? (
+          <div
+            className="flex items-center gap-2.5 cursor-pointer py-1.5 px-2.5 pl-1.5 rounded-xl border border-transparent hover:bg-[var(--bg-secondary)] hover:border-[var(--border)] transition-all duration-200"
+            onClick={() => setOpen(!open)}
+          >
+            <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-[var(--primary)] to-purple-400 text-white flex items-center justify-center font-bold text-[15px] shrink-0 shadow-[0_2px_8px_rgba(99,102,241,0.35)]">
+              {authTeacher?.name?.charAt(0).toUpperCase() || "T"}
+            </div>
+            <div className="hidden md:flex flex-col">
+              <span className="text-[13.5px] font-semibold text-[var(--text)] whitespace-nowrap">
+                {authTeacher?.name || "Teacher"}
+              </span>
+            </div>
+            <svg className={`hidden md:block text-[var(--subtext)] shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
           </div>
-          <div className="hidden md:flex flex-col">
-            <span className="text-[13.5px] font-semibold text-[var(--text)] whitespace-nowrap">
-              {teacher?.name || "Teacher"}
-            </span>
-          </div>
-          <svg className={`hidden md:block text-[var(--subtext)] shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </div>
+        ) : (
+          <button
+            id="nav-login-btn"
+            className="inline-flex items-center gap-1.5 h-[38px] px-4.5 bg-gradient-to-r from-[var(--primary)] to-purple-600 hover:from-[var(--primary-hover)] hover:to-purple-700 text-white text-[13.5px] font-semibold rounded-[10px] cursor-pointer shadow-md transition-all hover:-translate-y-0.5 active:scale-95 border-0"
+            onClick={() => navigate("/")}
+            title="Login"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+              <polyline points="10 17 15 12 10 7"/>
+              <line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            <span>Login</span>
+          </button>
+        )}
 
         {/* Profile Dropdown */}
-        {open && (
+        {open && hasToken && authTeacher && (
           <div className="absolute right-0 top-[calc(100%+10px)] bg-[var(--card)] border border-[var(--border)] rounded-2xl p-2 w-[220px] shadow-[var(--shadow-lg)] z-[300] animate-[dropdownIn_0.15s_cubic-bezier(0.4,0,0.2,1)]">
             {/* Header */}
             <div className="flex items-center gap-2.5 px-1.5 py-2 overflow-hidden">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-purple-400 text-white flex items-center justify-center font-bold text-base shrink-0">
-                {teacher?.name?.charAt(0).toUpperCase() || "T"}
+                {authTeacher?.name?.charAt(0).toUpperCase() || "T"}
               </div>
               <div className="min-w-0 overflow-hidden">
-                <p className="text-sm font-semibold text-[var(--text)] truncate">{teacher?.name || "Teacher"}</p>
-                <p className="text-xs text-[var(--subtext)] truncate">{teacher?.email || ""}</p>
+                <p className="text-sm font-semibold text-[var(--text)] truncate">{authTeacher?.name || "Teacher"}</p>
+                <p className="text-xs text-[var(--subtext)] truncate">{authTeacher?.email || ""}</p>
               </div>
             </div>
 
