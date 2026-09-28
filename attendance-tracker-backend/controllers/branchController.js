@@ -9,23 +9,25 @@ import { createBranchSheet, getSheetUrl } from "../services/googleSheets.js";
 /* CREATE BRANCH */
 export const createBranch = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, year } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "Branch name required" });
     }
 
     const exists = await Branch.findOne({
-      name,
+      name: name.trim(),
+      year: year ? year.trim() : "",
       teacher: req.user._id
     });
 
     if (exists) {
-      return res.status(400).json({ message: "Branch already exists" });
+      return res.status(400).json({ message: "Branch with this name and year already exists" });
     }
 
     const branch = await Branch.create({
-      name,
+      name: name.trim(),
+      year: year ? year.trim() : "",
       teacher: req.user._id
     });
 

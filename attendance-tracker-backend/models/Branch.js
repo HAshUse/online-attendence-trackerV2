@@ -6,6 +6,10 @@ const branchSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    year: {
+      type: String,
+      default: ""
+    },
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Teacher",
