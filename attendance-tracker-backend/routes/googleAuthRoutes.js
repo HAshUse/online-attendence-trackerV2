@@ -12,11 +12,30 @@ const router = express.Router();
 ===================================================== */
 router.get("/url", protect, (req, res) => {
   const client = createOAuth2Client(req);
+
+  // Capture the caller's frontend origin from origin or referer header
+  let frontendOrigin = "";
+  if (req.headers.origin) {
+    frontendOrigin = req.headers.origin;
+  } else if (req.headers.referer) {
+    try {
+      const parsed = new URL(req.headers.referer);
+      frontendOrigin = parsed.origin;
+    } catch (e) {}
+  }
+
+  // Pass both teacherId and frontendOrigin in state
+  const statePayload = JSON.stringify({
+    teacherId: req.user._id.toString(),
+    frontendOrigin: frontendOrigin || "",
+  });
+  const encodedState = Buffer.from(statePayload).toString("base64url");
+
   const url = client.generateAuthUrl({
     access_type: "offline",   // get refresh_token
     scope: SCOPES,
     prompt: "consent select_account", // force consent & let user pick Google account
-    state: req.user._id.toString(), // pass teacher ID through OAuth flow
+    state: encodedState,
   });
 
   res.json({ url });
@@ -27,17 +46,52 @@ router.get("/url", protect, (req, res) => {
    Google redirects here after teacher approves
 ===================================================== */
 router.get("/callback", async (req, res) => {
-  const { code, state: teacherId } = req.query;
+  const { code, state } = req.query;
+
+  let teacherId = null;
+  let frontendOrigin = null;
+
+  if (state) {
+    try {
+      const decoded = Buffer.from(state, "base64url").toString("utf8");
+      const parsed = JSON.parse(decoded);
+      teacherId = parsed.teacherId;
+      frontendOrigin = parsed.frontendOrigin;
+    } catch (e) {
+      teacherId = state;
+    }
+  }
 
   const getFrontendBaseUrl = () => {
+    // 1. If origin passed from the frontend request, prioritize it
+    if (
+      frontendOrigin &&
+      frontendOrigin.startsWith("http") &&
+      !frontendOrigin.includes("your-backend") &&
+      !frontendOrigin.includes("online-attendence-tracker-v2.onrender.com")
+    ) {
+      return frontendOrigin.replace(/\/$/, "");
+    }
+
+    // 2. If valid FRONTEND_URL env var exists (and is not pointing to backend)
     const envUrl = process.env.FRONTEND_URL;
-    if (envUrl && !envUrl.includes("<") && envUrl.startsWith("http")) {
+    if (
+      envUrl &&
+      !envUrl.includes("<") &&
+      !envUrl.includes("your-backend") &&
+      !envUrl.includes("online-attendence-tracker-v2.onrender.com") &&
+      envUrl.startsWith("http")
+    ) {
       return envUrl.replace(/\/$/, "");
     }
+
+    // 3. Localhost fallback
     const host = req.get("host") || "";
     if (host.includes("localhost") || host.includes("127.0.0.1")) {
       return "http://localhost:5173";
     }
+
+    // 4. Default production frontend static site
     return "https://attendance-tracker-frontend-yg94.onrender.com";
   };
 

@@ -36,6 +36,21 @@ app.use("/api/branches", branchAnalyticsRoutes);
 app.use("/api/auth/google", googleAuthRoutes);
 app.use("/api/colleges", collegeRoutes);
 
+// Fallback for non-API paths (e.g. /branches?google=success accessed directly on backend)
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    return next();
+  }
+  const frontendUrl =
+    process.env.FRONTEND_URL &&
+    !process.env.FRONTEND_URL.includes("online-attendence-tracker-v2") &&
+    !process.env.FRONTEND_URL.includes("<")
+      ? process.env.FRONTEND_URL.replace(/\/$/, "")
+      : "https://attendance-tracker-frontend-yg94.onrender.com";
+
+  res.redirect(`${frontendUrl}${req.originalUrl}`);
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
   console.log(`Server running on port http://localhost:${PORT}`)
