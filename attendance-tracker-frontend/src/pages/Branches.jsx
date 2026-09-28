@@ -22,6 +22,14 @@ function Branches() {
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState("");
 
+  // Edit / Rename Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingBranch, setEditingBranch] = useState(null);
+  const [editFormData, setEditFormData] = useState({ name: "", year: "" });
+  const [editCustomYear, setEditCustomYear] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editModalError, setEditModalError] = useState("");
+
   const navigate = useNavigate();
 
   // ================= LOAD BRANCHES =================
@@ -49,16 +57,17 @@ function Branches() {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  // Close modal on Escape key
+  // Close modals on Escape key
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === "Escape" && isModalOpen) {
-        closeModal();
+      if (e.key === "Escape") {
+        if (isModalOpen) closeModal();
+        if (editModalOpen) closeEditModal();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isModalOpen]);
+  }, [isModalOpen, editModalOpen]);
 
   const openModal = () => {
     setFormData({ name: "", year: "" });
@@ -71,6 +80,27 @@ function Branches() {
     if (submitting) return;
     setIsModalOpen(false);
     setModalError("");
+  };
+
+  // Open Rename / Edit Modal
+  const openEditModal = (branch) => {
+    setMenuOpenId(null);
+    setEditingBranch(branch);
+    const isPreset = YEAR_OPTIONS.includes(branch.year);
+    setEditFormData({
+      name: branch.name,
+      year: isPreset ? branch.year : branch.year ? "Custom" : "",
+    });
+    setEditCustomYear(!isPreset ? branch.year || "" : "");
+    setEditModalError("");
+    setEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    if (editSubmitting) return;
+    setEditModalOpen(false);
+    setEditingBranch(null);
+    setEditModalError("");
   };
 
   // ================= CREATE BRANCH =================
@@ -97,6 +127,41 @@ function Branches() {
       setModalError(err.response?.data?.message || "Failed to create branch");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ================= UPDATE / RENAME BRANCH =================
+  const handleUpdateBranch = async (e) => {
+    e.preventDefault();
+    if (!editFormData.name.trim()) {
+      setEditModalError("Please enter a branch name");
+      return;
+    }
+
+    const selectedYear =
+      editFormData.year === "Custom" ? editCustomYear.trim() : editFormData.year;
+
+    setEditSubmitting(true);
+    setEditModalError("");
+
+    try {
+      const res = await API.put(`/branches/update/${editingBranch._id}`, {
+        name: editFormData.name.trim(),
+        year: selectedYear,
+      });
+
+      setBranches((prev) =>
+        prev.map((b) =>
+          b._id === editingBranch._id
+            ? { ...b, name: res.data.name, year: res.data.year }
+            : b
+        )
+      );
+      closeEditModal();
+    } catch (err) {
+      setEditModalError(err.response?.data?.message || "Failed to rename branch");
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -268,6 +333,12 @@ function Branches() {
                             onClick={() => openAnalytics(b)}
                           >
                             📊 View Analytics
+                          </button>
+                          <button
+                            className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--text)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--bg-secondary)]"
+                            onClick={() => openEditModal(b)}
+                          >
+                            ✏️ Rename Branch
                           </button>
                           {b.sheetUrl && (
                             <a
@@ -450,6 +521,140 @@ function Branches() {
                     </>
                   ) : (
                     "+ Create Branch"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* RENAME BRANCH POPUP MODAL */}
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
+          {/* Modal Overlay / Backdrop Click Handler */}
+          <div className="fixed inset-0" onClick={closeEditModal} />
+
+          {/* Modal Content */}
+          <div className="relative bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 sm:p-7 shadow-2xl max-w-md w-full z-10 transition-colors duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full inline-block" />
+                <h3 className="text-xl font-bold text-[var(--text)] tracking-tight m-0">
+                  Rename Branch
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                disabled={editSubmitting}
+                className="p-1 rounded-lg text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+                title="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="text-xs text-[var(--subtext)] mb-5">
+              Update the branch name and academic year.
+            </p>
+
+            {/* Form */}
+            <form onSubmit={handleUpdateBranch} className="flex flex-col gap-4">
+              {/* Branch Name Field */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider">
+                  Branch Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Web Development, Data Analytics"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  required
+                  autoFocus
+                  className="w-full py-2.5 px-3.5 text-sm rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+                />
+              </div>
+
+              {/* Branch Year Field */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider">
+                  Branch / Academic Year
+                </label>
+                <select
+                  value={editFormData.year}
+                  onChange={(e) => setEditFormData({ ...editFormData, year: e.target.value })}
+                  className="w-full py-2.5 px-3.5 text-sm rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none cursor-pointer transition-all duration-200 focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+                >
+                  <option value="">Select Year (Optional)</option>
+                  {YEAR_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt} className="bg-[var(--card)] text-[var(--text)]">
+                      {opt}
+                    </option>
+                  ))}
+                  <option value="Custom" className="bg-[var(--card)] text-[var(--text)]">
+                    + Enter Custom Year
+                  </option>
+                </select>
+              </div>
+
+              {/* Custom Year Text Input */}
+              {editFormData.year === "Custom" && (
+                <div className="flex flex-col gap-1.5 animate-[fadeIn_0.15s_ease-out]">
+                  <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider">
+                    Custom Year Specification
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Batch 2026, Semester 3"
+                    value={editCustomYear}
+                    onChange={(e) => setEditCustomYear(e.target.value)}
+                    required
+                    className="w-full py-2.5 px-3.5 text-sm rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+                  />
+                </div>
+              )}
+
+              {/* Error Message */}
+              {editModalError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  {editModalError}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  disabled={editSubmitting}
+                  className="py-2.5 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] text-[var(--text)] text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSubmitting || !editFormData.name.trim()}
+                  className="py-2.5 px-5 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-semibold shadow-[0_2px_10px_rgba(37,99,235,0.3)] transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2 cursor-pointer"
+                >
+                  {editSubmitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
                   )}
                 </button>
               </div>

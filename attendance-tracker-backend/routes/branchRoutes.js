@@ -12,6 +12,7 @@ import protect from "../middleware/authMiddleware.js";
 import {
   createBranch,
   getMyBranches,
+  updateBranch,
   deleteBranch,
   getBranchById
 } from "../controllers/branchController.js";
@@ -23,6 +24,10 @@ router.post("/create", protect, createBranch);
 
 // list teacher branches
 router.get("/my", protect, getMyBranches);
+
+// update / rename
+router.put("/update/:id", protect, updateBranch);
+router.put("/:id", protect, updateBranch);
 
 // delete
 router.delete("/delete/:id", protect, deleteBranch);

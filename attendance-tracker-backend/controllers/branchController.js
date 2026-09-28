@@ -148,3 +148,56 @@ export const getBranchById = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+/* UPDATE / RENAME BRANCH */
+export const updateBranch = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, year } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: "Branch name is required" });
+    }
+
+    const branch = await Branch.findById(id);
+
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
+
+    if (branch.teacher.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to edit this branch" });
+    }
+
+    const trimmedName = name.trim();
+    const trimmedYear = year !== undefined ? (year ? year.trim() : "") : branch.year;
+
+    // Check if another branch already has this name and year for this teacher
+    const existing = await Branch.findOne({
+      _id: { $ne: id },
+      name: trimmedName,
+      year: trimmedYear,
+      teacher: req.user._id
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: "Another branch with this name and year already exists" });
+    }
+
+    branch.name = trimmedName;
+    branch.year = trimmedYear;
+
+    await branch.save();
+
+    const classCount = await Class.countDocuments({ branch: branch._id });
+
+    res.json({
+      ...branch.toObject(),
+      classCount,
+      sheetUrl: branch.sheetId ? getSheetUrl(branch.sheetId) : null,
+      message: "Branch renamed successfully"
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
