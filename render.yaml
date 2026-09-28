@@ -34,9 +34,9 @@ services:
   # =========================================================
   # 2. FRONTEND STATIC SITE (Vite + React + Tailwind CSS)
   # =========================================================
-  - type: static
+  - type: web
     name: attendance-tracker-frontend
-    plan: free
+    runtime: static
     rootDir: attendance-tracker-frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
