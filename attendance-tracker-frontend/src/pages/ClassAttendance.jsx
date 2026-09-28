@@ -97,26 +97,40 @@ function ClassAttendance() {
   };
 
   const [exportingSheet, setExportingSheet] = useState(false);
+  const [createdSheetUrl, setCreatedSheetUrl] = useState(null);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const showToast = (message, type = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+  const showToast = (message, type = "success", actionUrl = null) => {
+    setToast({ message, type, actionUrl });
+    setTimeout(() => setToast(null), 6000);
   };
 
   const handleExportGoogleSheet = async () => {
+    // Open a blank tab synchronously on click to bypass browser popup blockers
+    let newTab = null;
+    try {
+      newTab = window.open("about:blank", "_blank");
+    } catch (e) {}
+
     try {
       setExportingSheet(true);
       const res = await API.post(`/attendance/export-google-sheet/${id}`);
       if (res.data?.sheetUrl) {
-        showToast("Google Sheet opened successfully!", "success");
-        window.open(res.data.sheetUrl, "_blank");
+        setCreatedSheetUrl(res.data.sheetUrl);
+        showToast("Google Sheet generated successfully!", "success", res.data.sheetUrl);
+        if (newTab && !newTab.closed) {
+          newTab.location.href = res.data.sheetUrl;
+        } else {
+          window.open(res.data.sheetUrl, "_blank");
+        }
       } else {
+        if (newTab && !newTab.closed) newTab.close();
         showToast("Google Sheet generated successfully!", "success");
       }
     } catch (err) {
+      if (newTab && !newTab.closed) newTab.close();
       const msg = err.response?.data?.message || "";
       if (
         msg.toLowerCase().includes("connect your google") ||
@@ -185,8 +199,19 @@ function ClassAttendance() {
             onClick={handleExportGoogleSheet}
             disabled={exportingSheet || attendance.length === 0}
           >
-            {exportingSheet ? "Opening Sheet..." : "📊 Open in Google Sheets"}
+            {exportingSheet ? "Creating Sheet..." : "📊 Export to Google Sheets"}
           </button>
+
+          {createdSheetUrl && (
+            <a
+              href={createdSheetUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-95 inline-flex items-center gap-1.5 no-underline cursor-pointer animate-[fadeIn_0.2s_ease-out]"
+            >
+              📊 View Created Sheet ↗
+            </a>
+          )}
         </div>
 
         {/* Row 2: College select + Download Selected */}
@@ -361,6 +386,16 @@ function ClassAttendance() {
         }`}>
           <span className="text-lg">{toast.type === "error" ? "⚠️" : "✅"}</span>
           <span className="text-xs sm:text-sm font-medium">{toast.message}</span>
+          {toast.actionUrl && (
+            <a
+              href={toast.actionUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-1 px-2.5 py-1 bg-emerald-500/30 hover:bg-emerald-500/50 text-white text-xs font-bold rounded-lg no-underline transition-colors cursor-pointer"
+            >
+              Open Sheet ↗
+            </a>
+          )}
           <button onClick={() => setToast(null)} className="ml-2 text-gray-400 hover:text-white cursor-pointer bg-transparent border-0">✕</button>
         </div>
       )}
