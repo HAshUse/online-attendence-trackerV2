@@ -1,6 +1,6 @@
 import express from "express";
 import { google } from "googleapis";
-import oauth2Client, { SCOPES } from "../config/googleOAuth.js";
+import oauth2Client, { createOAuth2Client, SCOPES } from "../config/googleOAuth.js";
 import protect from "../middleware/authMiddleware.js";
 import Teacher from "../models/Teacher.js";
 
@@ -11,7 +11,8 @@ const router = express.Router();
    Returns the Google OAuth URL to redirect the teacher to
 ===================================================== */
 router.get("/url", protect, (req, res) => {
-  const url = oauth2Client.generateAuthUrl({
+  const client = createOAuth2Client(req);
+  const url = client.generateAuthUrl({
     access_type: "offline",   // get refresh_token
     scope: SCOPES,
     prompt: "consent select_account", // force consent & let user pick Google account
@@ -28,16 +29,31 @@ router.get("/url", protect, (req, res) => {
 router.get("/callback", async (req, res) => {
   const { code, state: teacherId } = req.query;
 
+  const getFrontendBaseUrl = () => {
+    const envUrl = process.env.FRONTEND_URL;
+    if (envUrl && !envUrl.includes("<") && envUrl.startsWith("http")) {
+      return envUrl.replace(/\/$/, "");
+    }
+    const host = req.get("host") || "";
+    if (host.includes("localhost") || host.includes("127.0.0.1")) {
+      return "http://localhost:5173";
+    }
+    return "https://attendance-tracker-frontend-yg94.onrender.com";
+  };
+
+  const frontendUrl = getFrontendBaseUrl();
+
   if (!code || !teacherId) {
-    return res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}?google=error`);
+    return res.redirect(`${frontendUrl}?google=error`);
   }
 
   try {
-    const { tokens } = await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
+    const client = createOAuth2Client(req);
+    const { tokens } = await client.getToken(code);
+    client.setCredentials(tokens);
 
     // Get teacher's Google email for verification
-    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+    const oauth2 = google.oauth2({ version: "v2", auth: client });
     const { data: googleUser } = await oauth2.userinfo.get();
 
     // Save tokens to teacher
@@ -48,10 +64,10 @@ router.get("/callback", async (req, res) => {
       googleEmail: googleUser.email,
     });
 
-    res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/branches?google=success`);
+    res.redirect(`${frontendUrl}/branches?google=success`);
   } catch (err) {
     console.error("Google OAuth callback error:", err);
-    res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}?google=error`);
+    res.redirect(`${frontendUrl}?google=error`);
   }
 });
 
@@ -78,8 +94,9 @@ router.delete("/disconnect", protect, async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.user._id);
     if (teacher?.googleAccessToken) {
-      oauth2Client.setCredentials({ access_token: teacher.googleAccessToken });
-      await oauth2Client.revokeCredentials().catch(() => {}); // best-effort
+      const client = createOAuth2Client(req);
+      client.setCredentials({ access_token: teacher.googleAccessToken });
+      await client.revokeCredentials().catch(() => {}); // best-effort
     }
 
     await Teacher.findByIdAndUpdate(req.user._id, {
