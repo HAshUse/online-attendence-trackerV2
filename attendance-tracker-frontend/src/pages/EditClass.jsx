@@ -269,7 +269,7 @@ function EditClass() {
         alert("✅ Google Meet link successfully generated and attached!");
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to regenerate Meet link");
+      alert(err.response?.data?.message || err.message || "Failed to regenerate Meet link. Please try again.");
     } finally {
       setRegenerating(false);
     }
@@ -299,7 +299,7 @@ function EditClass() {
       alert("✅ Class updated successfully!");
       navigate(form.branchId ? `/dashboard/${form.branchId}` : "/branches");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to update class");
+      alert(err.response?.data?.message || err.message || "Failed to update class. Please try again.");
     } finally {
       setSubmitting(false);
     }

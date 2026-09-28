@@ -12,7 +12,7 @@ const protect = async (req, res, next) => {
   }
 
   if (!token) {
-    return res.status(401).json({ message: "No token provided" });
+    return res.status(401).json({ message: "Authentication required. Please log in to continue." });
   }
 
   try {
@@ -21,12 +21,12 @@ const protect = async (req, res, next) => {
     req.user = await Teacher.findById(decoded.id).select("-password");
 
     if (!req.user) {
-      return res.status(401).json({ message: "Teacher not found" });
+      return res.status(401).json({ message: "Teacher account not found. Please log in again." });
     }
 
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({ message: "Your session has expired. Please log in again." });
   }
 };
 

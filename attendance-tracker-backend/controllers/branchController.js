@@ -12,7 +12,7 @@ export const createBranch = async (req, res) => {
     const { name, year } = req.body;
 
     if (!name) {
-      return res.status(400).json({ message: "Branch name required" });
+      return res.status(400).json({ message: "Branch name is required" });
     }
 
     const exists = await Branch.findOne({
@@ -22,7 +22,7 @@ export const createBranch = async (req, res) => {
     });
 
     if (exists) {
-      return res.status(400).json({ message: "Branch with this name and year already exists" });
+      return res.status(400).json({ message: "A branch with this name and year already exists" });
     }
 
     const branch = await Branch.create({

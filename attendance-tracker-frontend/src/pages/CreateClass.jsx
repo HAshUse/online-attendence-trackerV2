@@ -203,7 +203,7 @@ function CreateClass() {
       alert("✅ Class scheduled successfully!");
       navigate(`/dashboard/${branchId}`);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to create class");
+      alert(err.response?.data?.message || err.message || "Failed to create class. Please try again.");
     } finally {
       setLoading(false);
     }

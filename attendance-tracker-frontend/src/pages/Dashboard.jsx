@@ -65,7 +65,7 @@ function Dashboard() {
       setClasses((prev) => prev.filter((c) => c._id !== classId));
       alert("Class deleted successfully");
     } catch (err) {
-      alert(err.response?.data?.message || "Delete failed");
+      alert(err.response?.data?.message || err.message || "Failed to delete class. Please try again.");
     }
   };
 

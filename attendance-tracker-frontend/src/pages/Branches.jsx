@@ -124,7 +124,7 @@ function Branches() {
       closeModal();
       fetchBranches();
     } catch (err) {
-      setModalError(err.response?.data?.message || "Failed to create branch");
+      setModalError(err.response?.data?.message || err.message || "Failed to create branch. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -159,7 +159,7 @@ function Branches() {
       );
       closeEditModal();
     } catch (err) {
-      setEditModalError(err.response?.data?.message || "Failed to rename branch");
+      setEditModalError(err.response?.data?.message || err.message || "Failed to rename branch. Please try again.");
     } finally {
       setEditSubmitting(false);
     }
@@ -186,7 +186,7 @@ function Branches() {
       await API.delete(`/branches/delete/${branchId}`);
       setBranches((prev) => prev.filter((b) => b._id !== branchId));
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to delete branch");
+      alert(err.response?.data?.message || err.message || "Failed to delete branch. Please try again.");
     }
   };
 
@@ -488,11 +488,22 @@ function Branches() {
 
               {/* Error Message */}
               {modalError && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  {modalError}
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{modalError}</span>
+                  </div>
+                  {modalError.toLowerCase().includes("log in") && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/")}
+                      className="px-2.5 py-1 bg-red-500 text-white rounded-md text-[11px] font-bold hover:bg-red-600 transition-colors shrink-0 cursor-pointer"
+                    >
+                      Log In
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -622,11 +633,22 @@ function Branches() {
 
               {/* Error Message */}
               {editModalError && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  {editModalError}
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{editModalError}</span>
+                  </div>
+                  {editModalError.toLowerCase().includes("log in") && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/")}
+                      className="px-2.5 py-1 bg-red-500 text-white rounded-md text-[11px] font-bold hover:bg-red-600 transition-colors shrink-0 cursor-pointer"
+                    >
+                      Log In
+                    </button>
+                  )}
                 </div>
               )}
 
