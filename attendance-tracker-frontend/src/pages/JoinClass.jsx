@@ -80,10 +80,13 @@ const JoinClass = () => {
 
     const expiryUTC = new Date(classInfo.expiresAt).getTime();
 
-    // If start time is available in IST (+05:30)
+    // If start time is explicitly available in IST (+05:30)
     let startUTC = null;
     if (classInfo.classDate && classInfo.startTime) {
       startUTC = new Date(`${classInfo.classDate}T${classInfo.startTime}:00+05:30`).getTime();
+    } else {
+      // Fallback estimate: class started/starts 90 minutes before expiry
+      startUTC = expiryUTC - 90 * 60 * 1000;
     }
 
     const interval = setInterval(() => {
@@ -116,15 +119,40 @@ const JoinClass = () => {
         const mins = Math.floor((totalSeconds % 3600) / 60);
         const secs = totalSeconds % 60;
         setTimeLeft(
-          startUTC
+          hrs > 0
             ? `Live • ${hrs}h ${mins}m ${secs}s left`
-            : `${hrs}h ${mins}m ${secs}s left`
+            : `Live • ${mins}m ${secs}s left`
         );
       }
     }, 1000);
 
     return () => clearInterval(interval);
   }, [classInfo]);
+
+  // Format scheduled time helper
+  const getScheduledTimeString = () => {
+    if (!classInfo?.expiresAt) return "";
+    const expiryUTC = new Date(classInfo.expiresAt).getTime();
+    const startUTC =
+      classInfo.classDate && classInfo.startTime
+        ? new Date(`${classInfo.classDate}T${classInfo.startTime}:00+05:30`).getTime()
+        : expiryUTC - 90 * 60 * 1000;
+
+    const startStr = new Date(startUTC).toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const endStr = new Date(expiryUTC).toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    return `${startStr} – ${endStr} (IST)`;
+  };
 
   /* ================= INPUT HANDLER ================= */
 
@@ -217,6 +245,13 @@ const JoinClass = () => {
               </span>
             )}
           </div>
+
+          {/* Scheduled Time Subtext */}
+          {getScheduledTimeString() && !expired && (
+            <p className="text-[11.5px] text-[var(--subtext)] mt-2 mb-0 font-medium">
+              ⏰ Class Schedule: <span className="text-[var(--text)] font-bold">{getScheduledTimeString()}</span>
+            </p>
+          )}
         </div>
 
         {/* Divider */}
