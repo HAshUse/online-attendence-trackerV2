@@ -82,9 +82,15 @@ function Navbar() {
   const handleConnectGoogle = async () => {
     try {
       const res = await API.get("/auth/google/url");
-      window.location.href = res.data.url;
+      if (res.data?.url) {
+        window.location.href = res.data.url;
+      }
     } catch (err) {
       console.error("Failed to get Google auth URL:", err);
+      alert(
+        err.response?.data?.message ||
+          "Google Authentication service is currently updating on the backend. Please check the Render deployment or try again in a moment."
+      );
     }
   };
 
@@ -94,6 +100,7 @@ function Navbar() {
       setGoogleStatus({ connected: false, googleEmail: null });
     } catch (err) {
       console.error("Disconnect failed:", err);
+      alert(err.response?.data?.message || "Failed to disconnect Google account.");
     }
   };
 
