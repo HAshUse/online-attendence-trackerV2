@@ -114,6 +114,7 @@ function EditClass() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [branches, setBranches] = useState([]);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [meetMode, setMeetMode] = useState("custom"); // "auto" | "custom"
 
   const [form, setForm] = useState({
     className: "",
@@ -170,6 +171,10 @@ function EditClass() {
           accessType: cls.accessType || "open",
           classCode: cls.classCode || "",
         });
+
+        if (cls.meetLink) {
+          setMeetMode("custom");
+        }
 
         // 2. Fetch Branches
         try {
@@ -461,99 +466,162 @@ function EditClass() {
             </div>
           </div>
 
-          {/* Meeting Access Mode: Visual Cards (Public vs Private) */}
+          {/* Meeting Link Source Toggle */}
           <div className="mb-4.5 flex flex-col gap-1.5">
-            <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Meeting Privacy & Access Mode</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div
-                className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
-                  form.accessType === "open" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
-                }`}
-                onClick={() => setForm({ ...form, accessType: "open" })}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base shrink-0">🌐</span>
-                  <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Public / Open</span>
-                  <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "open" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
-                </div>
-                <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
-                  Students join directly without host approval
-                </p>
-              </div>
-
-              <div
-                className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
-                  form.accessType === "restricted" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
-                }`}
-                onClick={() => setForm({ ...form, accessType: "restricted" })}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base shrink-0">🔒</span>
-                  <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Private / Restricted</span>
-                  <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "restricted" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
-                </div>
-                <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
-                  Host approval required for each student
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Google Meet Link */}
-          <div className="mb-4.5 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Google Meet Link</label>
-              {form.meetLink && (
-                <a
-                  href={form.meetLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11.5px] font-semibold text-[var(--primary)] hover:underline opacity-90 transition-opacity"
-                >
-                  🚀 Test Link
-                </a>
-              )}
-            </div>
-            <input
-              name="meetLink"
-              placeholder="https://meet.google.com/xyz-abc-def"
-              value={form.meetLink}
-              onChange={handleChange}
-              className="w-full py-2.5 px-3.5 border-[1.5px] border-[var(--border)] rounded-lg text-[13.5px] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
-              required
-            />
-
-            {/* Auto-generate with Google Calendar */}
-            <div className="mt-1.5">
+            <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">
+              Meeting Link Option
+            </label>
+            <div className="grid grid-cols-2 p-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl gap-1">
               <button
                 type="button"
-                className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text)] text-[12.5px] font-semibold cursor-pointer transition-all hover:border-[#4285F4] hover:text-[#4285F4] hover:bg-[var(--card-hover)] disabled:opacity-60 disabled:cursor-not-allowed"
-                onClick={handleRegenerateMeet}
-                disabled={regenerating}
+                onClick={() => setMeetMode("auto")}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
+                  meetMode === "auto"
+                    ? "bg-[var(--card)] text-[var(--primary)] shadow-sm border border-[var(--border)]"
+                    : "text-[var(--subtext)] hover:text-[var(--text)]"
+                }`}
               >
-                {regenerating ? (
-                  "🔄 Generating Meet Link..."
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                    Generate Fresh Google Meet Link
-                  </>
-                )}
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Auto-generate Meet
+              </button>
+              <button
+                type="button"
+                onClick={() => setMeetMode("custom")}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
+                  meetMode === "custom"
+                    ? "bg-[var(--card)] text-[var(--primary)] shadow-sm border border-[var(--border)]"
+                    : "text-[var(--subtext)] hover:text-[var(--text)]"
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                Custom Meet Link
               </button>
             </div>
           </div>
 
+          {/* AUTO-GENERATE MEET MODE: Access Type & Google Meet regenerator */}
+          {meetMode === "auto" ? (
+            <div className="flex flex-col gap-4 animate-[fadeIn_0.2s_ease-out]">
+              {/* Meeting Access Mode: Visual Cards (Public vs Private) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Meeting Privacy & Access Mode</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div
+                    className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
+                      form.accessType === "open" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
+                    }`}
+                    onClick={() => setForm({ ...form, accessType: "open" })}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base shrink-0">🌐</span>
+                      <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Public / Open</span>
+                      <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "open" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
+                    </div>
+                    <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
+                      Students join directly without host approval
+                    </p>
+                  </div>
+
+                  <div
+                    className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
+                      form.accessType === "restricted" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
+                    }`}
+                    onClick={() => setForm({ ...form, accessType: "restricted" })}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base shrink-0">🔒</span>
+                      <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Private / Restricted</span>
+                      <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "restricted" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
+                    </div>
+                    <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
+                      Host approval required for each student
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Regenerate Google Meet Button */}
+              <div>
+                <button
+                  type="button"
+                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text)] text-[12.5px] font-semibold cursor-pointer transition-all hover:border-[#4285F4] hover:text-[#4285F4] hover:bg-[var(--card-hover)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  onClick={handleRegenerateMeet}
+                  disabled={regenerating}
+                >
+                  {regenerating ? (
+                    "🔄 Generating Meet Link..."
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                      Generate Fresh Google Meet Link
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {form.meetLink && (
+                <div className="flex items-center justify-between p-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-xs">
+                  <span className="text-[var(--subtext)] truncate mr-2">Attached: <strong className="text-[var(--text)]">{form.meetLink}</strong></span>
+                  <a
+                    href={form.meetLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[var(--primary)] font-semibold hover:underline shrink-0"
+                  >
+                    🚀 Test
+                  </a>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* CUSTOM MEET LINK MODE: Paste link input */
+            <div className="mb-4.5 flex flex-col gap-1.5 animate-[fadeIn_0.2s_ease-out]">
+              <div className="flex items-center justify-between">
+                <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">
+                  Paste Meeting Link <span className="text-red-500">*</span>
+                </label>
+                {form.meetLink && (
+                  <a
+                    href={form.meetLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11.5px] font-semibold text-[var(--primary)] hover:underline opacity-90 transition-opacity"
+                  >
+                    🚀 Test Link
+                  </a>
+                )}
+              </div>
+              <input
+                name="meetLink"
+                placeholder="https://meet.google.com/xyz-abc-def or Zoom / Teams link"
+                value={form.meetLink}
+                onChange={handleChange}
+                required={meetMode === "custom"}
+                autoFocus
+                className="w-full py-2.5 px-3.5 border-[1.5px] border-[var(--border)] rounded-lg text-[13.5px] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+              />
+              <p className="text-[11px] text-[var(--subtext)] m-0 leading-tight">
+                Students will be redirected to this link immediately after submitting their attendance.
+              </p>
+            </div>
+          )}
+
           {/* BUTTONS */}
-          <div className="flex flex-col-reverse sm:flex-row gap-3 mt-2.5">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 mt-4">
             <button
               type="button"
               className="flex-1 py-3 px-4 bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] rounded-lg text-sm font-semibold cursor-pointer transition-all hover:bg-[var(--card-hover)] hover:border-[var(--subtext)]"

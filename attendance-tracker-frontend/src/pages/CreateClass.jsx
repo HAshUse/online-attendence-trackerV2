@@ -123,6 +123,7 @@ function CreateClass() {
 
   const initial = getInitialTimes();
 
+  const [meetMode, setMeetMode] = useState("auto"); // "auto" | "custom"
   const [form, setForm] = useState({
     className: "",
     subject: "",
@@ -168,6 +169,11 @@ function CreateClass() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (meetMode === "custom" && !form.meetLink.trim()) {
+      alert("⚠️ Please enter your custom meeting link or switch to Auto-generate.");
+      return;
+    }
+
     const startDateTime = new Date(`${form.classDate}T${form.startTime}:00+05:30`);
     const endDateTime = new Date(`${form.classDate}T${form.endTime}:00+05:30`);
 
@@ -187,6 +193,7 @@ function CreateClass() {
     try {
       await API.post("/classes/create", {
         ...form,
+        meetLink: meetMode === "custom" ? form.meetLink.trim() : "",
         branchId,
       });
 
@@ -308,72 +315,135 @@ function CreateClass() {
             </div>
           </div>
 
-          {/* Meeting Access Mode: Visual Cards */}
+          {/* Meeting Link Source Toggle */}
           <div className="mb-4.5 flex flex-col gap-1.5">
-            <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Meeting Access Mode</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div
-                className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
-                  form.accessType === "open" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
+            <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">
+              Meeting Link Option
+            </label>
+            <div className="grid grid-cols-2 p-1 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setMeetMode("auto");
+                  setForm({ ...form, meetLink: "" });
+                }}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
+                  meetMode === "auto"
+                    ? "bg-[var(--card)] text-[var(--primary)] shadow-sm border border-[var(--border)]"
+                    : "text-[var(--subtext)] hover:text-[var(--text)]"
                 }`}
-                onClick={() => setForm({ ...form, accessType: "open" })}
-                role="button"
-                tabIndex={0}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-base shrink-0">🌐</span>
-                  <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Open to Everyone</span>
-                  <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "open" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
-                </div>
-                <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
-                  Students join directly without waiting for host approval
-                </p>
-              </div>
-
-              <div
-                className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
-                  form.accessType === "restricted" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Auto-generate Meet
+              </button>
+              <button
+                type="button"
+                onClick={() => setMeetMode("custom")}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
+                  meetMode === "custom"
+                    ? "bg-[var(--card)] text-[var(--primary)] shadow-sm border border-[var(--border)]"
+                    : "text-[var(--subtext)] hover:text-[var(--text)]"
                 }`}
-                onClick={() => setForm({ ...form, accessType: "restricted" })}
-                role="button"
-                tabIndex={0}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-base shrink-0">🔒</span>
-                  <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Host Approval</span>
-                  <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "restricted" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
-                </div>
-                <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
-                  Teacher must admit each student manually before entering
-                </p>
-              </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                Custom Meet Link
+              </button>
             </div>
           </div>
 
-          {/* Optional Meet Link */}
-          <div className="mb-4.5 flex flex-col gap-1.5">
-            <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide flex justify-between items-center">
-              <span>Custom Meet Link</span> <span className="font-normal text-[var(--subtext)] text-[11.5px]">(Optional - Auto-generated via Google Calendar)</span>
-            </label>
-            <input
-              name="meetLink"
-              placeholder="https://meet.google.com/xyz-abc-def (Leave blank to auto-create)"
-              value={form.meetLink}
-              onChange={handleChange}
-              className="w-full py-2.5 px-3.5 border-[1.5px] border-[var(--border)] rounded-lg text-[13.5px] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
-            />
-          </div>
+          {/* AUTO-GENERATE MEET MODE: Access Type & Google Calendar info */}
+          {meetMode === "auto" ? (
+            <div className="flex flex-col gap-4 animate-[fadeIn_0.2s_ease-out]">
+              {/* Meeting Access Mode: Visual Cards */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">Meeting Access Mode</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div
+                    className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
+                      form.accessType === "open" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
+                    }`}
+                    onClick={() => setForm({ ...form, accessType: "open" })}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base shrink-0">🌐</span>
+                      <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Open to Everyone</span>
+                      <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "open" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
+                    </div>
+                    <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
+                      Students join directly without waiting for host approval
+                    </p>
+                  </div>
 
-          <div className="bg-[var(--primary-light)] border border-indigo-500/25 text-[var(--primary)] text-xs p-2.5 sm:p-3.5 rounded-lg mt-1 mb-5 leading-relaxed">
-            <span className="font-bold">📅 Google Calendar:</span> Meet link will be automatically attached to this session.
-          </div>
+                  <div
+                    className={`border-[1.5px] border-[var(--border)] bg-[var(--bg)] rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 select-none hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] hover:-translate-y-0.5 ${
+                      form.accessType === "restricted" ? "!border-[var(--primary)] !bg-[var(--primary-light)] ring-1 ring-[var(--primary)]" : ""
+                    }`}
+                    onClick={() => setForm({ ...form, accessType: "restricted" })}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base shrink-0">🔒</span>
+                      <span className="text-[12.5px] font-bold text-[var(--text)] flex-1 leading-tight">Host Approval</span>
+                      <span className={`w-4 h-4 rounded-full border-2 border-[var(--border)] flex items-center justify-center shrink-0 transition-all ${form.accessType === "restricted" ? "border-[var(--primary)] bg-[var(--primary)] after:content-[''] after:w-1.5 after:h-1.5 after:bg-white after:rounded-full" : ""}`}></span>
+                    </div>
+                    <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
+                      Teacher must admit each student manually before entering
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[var(--primary-light)] border border-indigo-500/25 text-[var(--primary)] text-xs p-2.5 sm:p-3.5 rounded-lg mb-1 leading-relaxed">
+                <span className="font-bold">📅 Google Calendar:</span> Meet link will be automatically created and attached to this session.
+              </div>
+            </div>
+          ) : (
+            /* CUSTOM MEET LINK MODE: Paste link input */
+            <div className="mb-4.5 flex flex-col gap-1.5 animate-[fadeIn_0.2s_ease-out]">
+              <div className="flex items-center justify-between">
+                <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide">
+                  Paste Meeting Link <span className="text-red-500">*</span>
+                </label>
+                {form.meetLink && (
+                  <a
+                    href={form.meetLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11.5px] font-semibold text-[var(--primary)] hover:underline opacity-90 transition-opacity"
+                  >
+                    🚀 Test Link
+                  </a>
+                )}
+              </div>
+              <input
+                name="meetLink"
+                placeholder="https://meet.google.com/xyz-abc-def or Zoom / Teams link"
+                value={form.meetLink}
+                onChange={handleChange}
+                required={meetMode === "custom"}
+                autoFocus
+                className="w-full py-2.5 px-3.5 border-[1.5px] border-[var(--border)] rounded-lg text-[13.5px] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+              />
+              <p className="text-[11px] text-[var(--subtext)] m-0 leading-tight">
+                Students will be redirected to this link immediately after submitting their attendance.
+              </p>
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-lg text-[14.5px] font-bold cursor-pointer transition-all duration-200 shadow-[0_4px_14px_rgba(99,102,241,0.35)] tracking-wide hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+            className="w-full mt-3 py-3 px-4 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-lg text-[14.5px] font-bold cursor-pointer transition-all duration-200 shadow-[0_4px_14px_rgba(99,102,241,0.35)] tracking-wide hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
           >
-            {loading ? "Scheduling Class..." : "Schedule Class & Create Meet"}
+            {loading ? "Scheduling Class..." : meetMode === "auto" ? "Schedule Class & Auto-Create Meet" : "Schedule Class with Custom Link"}
           </button>
         </form>
       </div>
