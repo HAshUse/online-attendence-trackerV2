@@ -22,6 +22,7 @@ const teacherSchema = new mongoose.Schema(
     googleRefreshToken: { type: String },
     googleTokenExpiry: { type: Number },
     googleEmail: { type: String },
+    googleConnectedAt: { type: Date },
   },
   { timestamps: true }
 );

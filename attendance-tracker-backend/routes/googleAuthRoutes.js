@@ -110,13 +110,18 @@ router.get("/callback", async (req, res) => {
     const oauth2 = google.oauth2({ version: "v2", auth: client });
     const { data: googleUser } = await oauth2.userinfo.get();
 
-    // Save tokens to teacher
-    await Teacher.findByIdAndUpdate(teacherId, {
+    // Prepare token updates while preserving existing refresh_token if new one isn't returned
+    const updatePayload = {
       googleAccessToken: tokens.access_token,
-      googleRefreshToken: tokens.refresh_token || undefined,
       googleTokenExpiry: tokens.expiry_date,
       googleEmail: googleUser.email,
-    });
+      googleConnectedAt: new Date()
+    };
+    if (tokens.refresh_token) {
+      updatePayload.googleRefreshToken = tokens.refresh_token;
+    }
+
+    await Teacher.findByIdAndUpdate(teacherId, { $set: updatePayload });
 
     res.redirect(`${frontendUrl}/branches?google=success`);
   } catch (err) {
@@ -127,16 +132,20 @@ router.get("/callback", async (req, res) => {
 
 /* =====================================================
    GET /api/auth/google/status
-   Returns whether the teacher has connected Google
+   Returns whether the teacher has connected Google (valid across token refreshes)
 ===================================================== */
 router.get("/status", protect, async (req, res) => {
   const teacher = await Teacher.findById(req.user._id).select(
-    "googleEmail googleAccessToken"
+    "googleEmail googleAccessToken googleRefreshToken googleConnectedAt"
   );
 
+  // Remains connected as long as access token or long-lived refresh token exists in DB
+  const isConnected = !!(teacher?.googleAccessToken || teacher?.googleRefreshToken);
+
   res.json({
-    connected: !!teacher?.googleAccessToken,
+    connected: isConnected,
     googleEmail: teacher?.googleEmail || null,
+    googleConnectedAt: teacher?.googleConnectedAt || null
   });
 });
 
@@ -159,6 +168,7 @@ router.delete("/disconnect", protect, async (req, res) => {
         googleRefreshToken: 1,
         googleTokenExpiry: 1,
         googleEmail: 1,
+        googleConnectedAt: 1
       },
     });
 

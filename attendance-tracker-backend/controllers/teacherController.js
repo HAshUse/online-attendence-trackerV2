@@ -77,11 +77,11 @@ export const loginTeacher = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // 4. Generate token
+    // 4. Generate token (valid for 7 days)
     const token = jwt.sign(
       { id: teacher._id },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "7d" }
     );
 
     res.status(200).json({

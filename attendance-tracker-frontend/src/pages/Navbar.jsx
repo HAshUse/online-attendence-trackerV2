@@ -8,7 +8,13 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const [googleStatus, setGoogleStatus] = useState({ connected: false, googleEmail: null });
+  const [googleStatus, setGoogleStatus] = useState(() => {
+    try {
+      const saved = localStorage.getItem("googleStatus");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { connected: false, googleEmail: null };
+  });
   const { dark, setDark } = useTheme();
   const profileRef = useRef(null);
 
@@ -51,10 +57,16 @@ function Navbar() {
     const token = localStorage.getItem("token");
     if (!token) {
       setGoogleStatus({ connected: false, googleEmail: null });
+      localStorage.removeItem("googleStatus");
       return;
     }
     API.get("/auth/google/status")
-      .then((res) => setGoogleStatus(res.data))
+      .then((res) => {
+        if (res.data) {
+          setGoogleStatus(res.data);
+          localStorage.setItem("googleStatus", JSON.stringify(res.data));
+        }
+      })
       .catch(() => {});
   }, [hasToken, location.pathname]);
 
@@ -63,7 +75,12 @@ function Navbar() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("google") === "success") {
       API.get("/auth/google/status")
-        .then((res) => setGoogleStatus(res.data))
+        .then((res) => {
+          if (res.data) {
+            setGoogleStatus(res.data);
+            localStorage.setItem("googleStatus", JSON.stringify(res.data));
+          }
+        })
         .catch(() => {});
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -72,6 +89,7 @@ function Navbar() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("teacher");
+    localStorage.removeItem("googleStatus");
     setHasToken(false);
     setAuthTeacher(null);
     setOpen(false);
