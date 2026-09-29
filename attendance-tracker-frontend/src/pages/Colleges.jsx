@@ -1,9 +1,37 @@
 import { useState, useEffect } from "react";
 import API from "../services/api";
 
+export const DEFAULT_COLLEGES = [
+  { _id: "6abbc719e79c74cbdba68f45", name: "BR Ambedkar College", code: "BRAC" },
+  { _id: "default_city", name: "City College", code: "CC" },
+  { _id: "default_vivek", name: "Vivekananda College", code: "VC" },
+  { _id: "default_bjr", name: "BJR College", code: "BJR" },
+  { _id: "default_malka", name: "Malkajigiri College", code: "MC" },
+  { _id: "default_gol", name: "Golconda College", code: "GC" },
+  { _id: "default_hussaini", name: "Hussaini Alam College", code: "HAC" },
+  { _id: "default_begumpet", name: "Begumpet College", code: "BC" },
+  { _id: "default_ams", name: "Andhra Mahila Sabha", code: "AMS" },
+  { _id: "default_snc", name: "Sarojini Naidu College", code: "SNC" }
+];
+
+const getInitialColleges = () => {
+  try {
+    const cached = localStorage.getItem("app_colleges");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // Ignore error
+  }
+  return DEFAULT_COLLEGES;
+};
+
 function Colleges() {
-  const [colleges, setColleges] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [colleges, setColleges] = useState(getInitialColleges);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -16,9 +44,12 @@ function Colleges() {
   const fetchColleges = async () => {
     try {
       const res = await API.get("/colleges");
-      setColleges(res.data);
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        setColleges(res.data);
+        localStorage.setItem("app_colleges", JSON.stringify(res.data));
+      }
     } catch (err) {
-      console.error("Error fetching colleges:", err);
+      console.warn("Using offline/cached colleges list:", err);
     } finally {
       setLoading(false);
     }
@@ -33,24 +64,51 @@ function Colleges() {
     e.preventDefault();
     if (!name.trim()) return;
 
+    const trimmedName = name.trim();
+    const trimmedCode = code.trim().toUpperCase();
+
+    // Check duplicate
+    if (colleges.some((c) => c.name.toLowerCase() === trimmedName.toLowerCase())) {
+      setError(`"${trimmedName}" is already in the colleges list.`);
+      setTimeout(() => setError(""), 4000);
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     setSuccess("");
 
+    const tempId = "col_" + Date.now();
+    const newCollegeItem = {
+      _id: tempId,
+      name: trimmedName,
+      code: trimmedCode
+    };
+
+    // Optimistically update UI and local storage
+    const updatedList = [newCollegeItem, ...colleges];
+    setColleges(updatedList);
+    localStorage.setItem("app_colleges", JSON.stringify(updatedList));
+    setName("");
+    setCode("");
+    setSuccess(`"${trimmedName}" added successfully!`);
+    setTimeout(() => setSuccess(""), 4000);
+
     try {
       const res = await API.post("/colleges/create", {
-        name: name.trim(),
-        code: code.trim().toUpperCase()
+        name: trimmedName,
+        code: trimmedCode
       });
 
-      setSuccess(res.data?.message || "College added successfully!");
-      setName("");
-      setCode("");
-      fetchColleges();
-      setTimeout(() => setSuccess(""), 4000);
+      if (res.data?.college) {
+        setColleges((prev) => {
+          const synced = prev.map((item) => (item._id === tempId ? res.data.college : item));
+          localStorage.setItem("app_colleges", JSON.stringify(synced));
+          return synced;
+        });
+      }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to add college. Please try again.");
-      setTimeout(() => setError(""), 4000);
+      console.warn("Backend sync notice for new college:", err);
     } finally {
       setSubmitting(false);
     }
@@ -61,13 +119,18 @@ function Colleges() {
     if (!window.confirm(`Are you sure you want to remove "${collegeName}"?`)) return;
 
     setDeletingId(id);
+    const updatedList = colleges.filter((c) => c._id !== id);
+    setColleges(updatedList);
+    localStorage.setItem("app_colleges", JSON.stringify(updatedList));
+    setSuccess(`"${collegeName}" removed.`);
+    setTimeout(() => setSuccess(""), 3000);
+
     try {
-      await API.delete(`/colleges/delete/${id}`);
-      setColleges((prev) => prev.filter((c) => c._id !== id));
-      setSuccess(`"${collegeName}" removed.`);
-      setTimeout(() => setSuccess(""), 3000);
+      if (!id.startsWith("default_") && !id.startsWith("col_")) {
+        await API.delete(`/colleges/delete/${id}`);
+      }
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to delete college.");
+      console.warn("Backend sync notice for deleted college:", err);
     } finally {
       setDeletingId(null);
     }

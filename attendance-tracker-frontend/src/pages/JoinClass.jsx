@@ -20,18 +20,36 @@ const JoinClass = () => {
     college: savedProfile?.college || ""
   });
 
+  const DEFAULT_JOIN_COLLEGES = [
+    { name: "BR Ambedkar College", code: "BRAC" },
+    { name: "City College", code: "CC" },
+    { name: "Vivekananda College", code: "VC" },
+    { name: "BJR College", code: "BJR" },
+    { name: "Malkajigiri College", code: "MC" },
+    { name: "Golconda College", code: "GC" },
+    { name: "Hussaini Alam College", code: "HAC" },
+    { name: "Begumpet College", code: "BC" },
+    { name: "Andhra Mahila Sabha", code: "AMS" },
+    { name: "Sarojini Naidu College", code: "SNC" }
+  ];
+
+  const getJoinInitialColleges = () => {
+    try {
+      const cached = localStorage.getItem("app_colleges");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore error
+    }
+    return DEFAULT_JOIN_COLLEGES;
+  };
+
   const [classInfo, setClassInfo] = useState(null);
-  const [colleges, setColleges] = useState([
-    { name: "City College" },
-    { name: "Vivekananda College" },
-    { name: "BJR College" },
-    { name: "Malkajigiri College" },
-    { name: "Golconda College" },
-    { name: "Hussaini Alam College" },
-    { name: "Begumpet College" },
-    { name: "Andhra Mahila Sabha" },
-    { name: "Sarojini Naidu College" }
-  ]);
+  const [colleges, setColleges] = useState(getJoinInitialColleges);
   const [timeLeft, setTimeLeft] = useState("");
   const [expired, setExpired] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -61,11 +79,12 @@ const JoinClass = () => {
     const fetchColleges = async () => {
       try {
         const res = await API.get("/colleges");
-        if (res.data && res.data.length > 0) {
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
           setColleges(res.data);
+          localStorage.setItem("app_colleges", JSON.stringify(res.data));
         }
       } catch (err) {
-        console.error("Error loading colleges list:", err);
+        console.warn("Error loading colleges list, using cached/defaults:", err);
       }
     };
 
