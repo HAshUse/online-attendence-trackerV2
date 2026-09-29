@@ -4,6 +4,7 @@ const DEFAULT_COLLEGES = [
   { name: "City College", code: "CC" },
   { name: "Vivekananda College", code: "VC" },
   { name: "BJR College", code: "BJR" },
+  { name: "BR Ambedkar College", code: "BRAC" },
   { name: "Malkajigiri College", code: "MC" },
   { name: "Golconda College", code: "GC" },
   { name: "Hussaini Alam College", code: "HAC" },
