@@ -73,33 +73,54 @@ const JoinClass = () => {
     fetchColleges();
   }, [classCode]);
 
-  /* ================= COUNTDOWN (FIXED TIMEZONE) ================= */
+  /* ================= COUNTDOWN (IST TIMEZONE) ================= */
 
   useEffect(() => {
     if (!classInfo?.expiresAt) return;
 
     const expiryUTC = new Date(classInfo.expiresAt).getTime();
 
+    // If start time is available in IST (+05:30)
+    let startUTC = null;
+    if (classInfo.classDate && classInfo.startTime) {
+      startUTC = new Date(`${classInfo.classDate}T${classInfo.startTime}:00+05:30`).getTime();
+    }
+
     const interval = setInterval(() => {
       const nowUTC = Date.now();
-      const diff = expiryUTC - nowUTC;
 
-      if (isNaN(diff)) return;
-
-      if (diff <= 0) {
+      if (expiryUTC <= nowUTC) {
         setExpired(true);
-        setTimeLeft("Expired");
+        setTimeLeft("Session Expired");
         clearInterval(interval);
         return;
       }
 
-      const totalSeconds = Math.floor(diff / 1000);
-
-      const hrs = Math.floor(totalSeconds / 3600);
-      const mins = Math.floor((totalSeconds % 3600) / 60);
-      const secs = totalSeconds % 60;
-
-      setTimeLeft(`${hrs}h ${mins}m ${secs}s`);
+      // If class hasn't started yet
+      if (startUTC && nowUTC < startUTC) {
+        const diff = startUTC - nowUTC;
+        const totalSeconds = Math.floor(diff / 1000);
+        const hrs = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        setTimeLeft(
+          hrs > 0
+            ? `Starts in ${hrs}h ${mins}m ${secs}s`
+            : `Starts in ${mins}m ${secs}s`
+        );
+      } else {
+        // Class is Live / In Progress
+        const diff = expiryUTC - nowUTC;
+        const totalSeconds = Math.floor(diff / 1000);
+        const hrs = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        setTimeLeft(
+          startUTC
+            ? `Live • ${hrs}h ${mins}m ${secs}s left`
+            : `${hrs}h ${mins}m ${secs}s left`
+        );
+      }
     }, 1000);
 
     return () => clearInterval(interval);

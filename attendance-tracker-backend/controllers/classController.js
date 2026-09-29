@@ -1,10 +1,26 @@
-
-
-
 import Class from "../models/Class.js";
 import Attendance from "../models/Attendance.js";
 import Branch from "../models/Branch.js";
 import { createMeetLink } from "../services/googleCalendar.js";
+
+/**
+ * Helper to parse date & time strings into a Date object in IST (Asia/Kolkata, UTC+05:30)
+ * @param {string} dateStr - "YYYY-MM-DD" e.g. "2026-09-29"
+ * @param {string} timeStr - "HH:mm" e.g. "20:00"
+ * @returns {Date}
+ */
+export const parseISTDateTime = (dateStr, timeStr) => {
+  if (!dateStr) return new Date();
+  const t = (timeStr || "23:59").trim();
+  const parts = t.split(":");
+  const hh = parts[0].padStart(2, "0");
+  const mm = (parts[1] || "00").padStart(2, "0");
+  const ss = (parts[2] || "00").padStart(2, "0");
+  // Always attach +05:30 (IST) offset
+  const isoWithIST = `${dateStr.trim()}T${hh}:${mm}:${ss}+05:30`;
+  const dt = new Date(isoWithIST);
+  return isNaN(dt.getTime()) ? new Date() : dt;
+};
 
 export const createClass = async (req, res) => {
   try {
@@ -24,11 +40,11 @@ export const createClass = async (req, res) => {
       return res.status(403).json({ message: "Invalid branch selected" });
     }
 
-    // Determine start & end Datetime
+    // Determine start & end Datetime in IST (+05:30)
     let startDateTime, endDateTime;
     if (classDate && startTime && endTime) {
-      startDateTime = new Date(`${classDate}T${startTime}`);
-      endDateTime = new Date(`${classDate}T${endTime}`);
+      startDateTime = parseISTDateTime(classDate, startTime);
+      endDateTime = parseISTDateTime(classDate, endTime);
     } else if (expiresAt) {
       startDateTime = new Date();
       endDateTime = new Date(expiresAt);
@@ -75,6 +91,9 @@ export const createClass = async (req, res) => {
       meetLink: finalMeetLink,
       classCode,
       branch: branchId,
+      classDate: classDate || "",
+      startTime: startTime || "",
+      endTime: endTime || "",
       expiresAt: endDateTime,
       accessType: accessType || "open",
       teacher: req.user._id
@@ -86,8 +105,6 @@ export const createClass = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
-
 
 export const getMyClasses = async (req, res) => {
   try {
@@ -117,8 +134,6 @@ export const getMyClasses = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
-
 
 export const updateClass = async (req, res) => {
   try {
@@ -161,13 +176,16 @@ export const updateClass = async (req, res) => {
     if (subject) classDoc.subject = subject;
     if (accessType) classDoc.accessType = accessType;
 
-    // Handle Timings
+    // Handle Timings in IST (+05:30)
     let startDateTime = null;
     let endDateTime = null;
 
     if (classDate && startTime && endTime) {
-      startDateTime = new Date(`${classDate}T${startTime}`);
-      endDateTime = new Date(`${classDate}T${endTime}`);
+      startDateTime = parseISTDateTime(classDate, startTime);
+      endDateTime = parseISTDateTime(classDate, endTime);
+      classDoc.classDate = classDate;
+      classDoc.startTime = startTime;
+      classDoc.endTime = endTime;
       classDoc.expiresAt = endDateTime;
     } else if (expiresAt) {
       endDateTime = new Date(expiresAt);
@@ -206,7 +224,6 @@ export const updateClass = async (req, res) => {
   }
 };
 
-
 export const deleteClass = async (req, res) => {
   try {
     const { id } = req.params;
@@ -229,7 +246,6 @@ export const deleteClass = async (req, res) => {
   }
 };
 
-
 export const getClassByCode = async (req, res) => {
   try {
     const { classCode } = req.params;
@@ -249,6 +265,9 @@ export const getClassByCode = async (req, res) => {
       subject: foundClass.subject,
       branch: foundClass.branch?.name || "General",
       branchId: foundClass.branch?._id,
+      classDate: foundClass.classDate,
+      startTime: foundClass.startTime,
+      endTime: foundClass.endTime,
       expiresAt: foundClass.expiresAt,
       meetLink: foundClass.meetLink,
       isExpired

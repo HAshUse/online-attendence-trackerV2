@@ -137,33 +137,26 @@ function EditClass() {
         const res = await API.get(`/classes/single/${id}`);
         const cls = res.data;
 
-        // Parse date and time from expiresAt if available
+        // Parse date and time from class or expiresAt in IST
         let classDate = "";
         let endTime = "11:30";
         let startTime = "10:00";
 
-        if (cls.expiresAt) {
+        if (cls.classDate && cls.startTime && cls.endTime) {
+          classDate = cls.classDate;
+          startTime = cls.startTime;
+          endTime = cls.endTime;
+        } else if (cls.expiresAt) {
           const expDate = new Date(cls.expiresAt);
-          const y = expDate.getFullYear();
-          const m = String(expDate.getMonth() + 1).padStart(2, "0");
-          const d = String(expDate.getDate()).padStart(2, "0");
-          classDate = `${y}-${m}-${d}`;
+          classDate = expDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // "YYYY-MM-DD"
+          endTime = expDate.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
 
-          const endH = String(expDate.getHours()).padStart(2, "0");
-          const endM = String(Math.floor(expDate.getMinutes() / 5) * 5).padStart(2, "0");
-          endTime = `${endH}:${endM}`;
-
-          // estimate start time ~1.5 hours before end
+          // estimate start time ~1.5 hours before end in IST
           const startDate = new Date(expDate.getTime() - 90 * 60 * 1000);
-          const startH = String(startDate.getHours()).padStart(2, "0");
-          const startM = String(Math.floor(startDate.getMinutes() / 5) * 5).padStart(2, "0");
-          startTime = `${startH}:${startM}`;
+          startTime = startDate.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
         } else {
           const now = new Date();
-          const y = now.getFullYear();
-          const m = String(now.getMonth() + 1).padStart(2, "0");
-          const d = String(now.getDate()).padStart(2, "0");
-          classDate = `${y}-${m}-${d}`;
+          classDate = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
         }
 
         setForm({
@@ -209,10 +202,8 @@ function EditClass() {
     if (type === "tomorrow") {
       d.setDate(d.getDate() + 1);
     }
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    setForm((prev) => ({ ...prev, classDate: `${year}-${month}-${day}` }));
+    const dateStr = d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    setForm((prev) => ({ ...prev, classDate: dateStr }));
   };
 
   const applyDuration = (mins) => {
@@ -283,8 +274,8 @@ function EditClass() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const startDateTime = new Date(`${form.classDate}T${form.startTime}`);
-    const endDateTime = new Date(`${form.classDate}T${form.endTime}`);
+    const startDateTime = new Date(`${form.classDate}T${form.startTime}:00+05:30`);
+    const endDateTime = new Date(`${form.classDate}T${form.endTime}:00+05:30`);
 
     if (startDateTime >= endDateTime) {
       alert("⚠️ Class end time must be after the start time.");

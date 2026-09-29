@@ -38,6 +38,21 @@ const classSchema = new mongoose.Schema(
       required: true
     },
 
+    classDate: {
+      type: String,
+      default: ""
+    },
+
+    startTime: {
+      type: String,
+      default: ""
+    },
+
+    endTime: {
+      type: String,
+      default: ""
+    },
+
     expiresAt: {
       type: Date,
       required: true

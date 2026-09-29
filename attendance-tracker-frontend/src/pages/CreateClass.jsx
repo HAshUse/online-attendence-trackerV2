@@ -109,22 +109,14 @@ function CreateClass() {
   const { branchId } = useParams();
   const [loading, setLoading] = useState(false);
 
-  // Helper to format local date & time
+  // Helper to format local date & time in IST
   const getInitialTimes = () => {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    const todayStr = `${year}-${month}-${day}`;
-
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, "0");
-    const startTimeStr = `${hours}:${minutes}`;
+    const todayStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const startTimeStr = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
 
     const later = new Date(now.getTime() + 90 * 60 * 1000); // +90 mins
-    const endHours = String(later.getHours()).padStart(2, "0");
-    const endMinutes = String(Math.floor(later.getMinutes() / 5) * 5).padStart(2, "0");
-    const endTimeStr = `${endHours}:${endMinutes}`;
+    const endTimeStr = later.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
 
     return { todayStr, startTimeStr, endTimeStr };
   };
@@ -147,10 +139,8 @@ function CreateClass() {
     if (type === "tomorrow") {
       d.setDate(d.getDate() + 1);
     }
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    setForm((prev) => ({ ...prev, classDate: `${year}-${month}-${day}` }));
+    const dateStr = d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    setForm((prev) => ({ ...prev, classDate: dateStr }));
   };
 
   const applyDuration = (mins) => {
@@ -178,8 +168,8 @@ function CreateClass() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const startDateTime = new Date(`${form.classDate}T${form.startTime}`);
-    const endDateTime = new Date(`${form.classDate}T${form.endTime}`);
+    const startDateTime = new Date(`${form.classDate}T${form.startTime}:00+05:30`);
+    const endDateTime = new Date(`${form.classDate}T${form.endTime}:00+05:30`);
 
     if (endDateTime <= new Date()) {
       alert("⚠️ The class end time has already passed! Please select a future time or date.");
