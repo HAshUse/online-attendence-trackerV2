@@ -56,152 +56,19 @@ const JoinClass = () => {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
-  /* ================= FETCH CLASS INFO & COLLEGES ================= */
-
-  useEffect(() => {
-    const fetchClass = async () => {
-      try {
-        const res = await API.get(`/classes/by-code/${classCode}`);
-        setClassInfo(res.data);
-        if (res.data.isExpired || new Date(res.data.expiresAt) <= new Date()) {
-          setExpired(true);
-          setTimeLeft("Expired");
-        }
-      } catch (err) {
-        setError(err.response?.data?.message || "Invalid or expired class link");
-        setExpired(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchColleges = async () => {
-      try {
-        const res = await API.get("/colleges");
-        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-          setColleges(res.data);
-          localStorage.setItem("app_colleges", JSON.stringify(res.data));
-        }
-      } catch (err) {
-        console.warn("Error loading colleges list, using cached/defaults:", err);
-      }
-    };
-
-    fetchClass();
-    fetchColleges();
-  }, [classCode]);
-
-  /* ================= COUNTDOWN (IST TIMEZONE) ================= */
-
-  useEffect(() => {
-    if (!classInfo?.expiresAt) return;
-
-    const expiryUTC = new Date(classInfo.expiresAt).getTime();
-
-    // If start time is explicitly available in IST (+05:30)
-    let startUTC = null;
-    if (classInfo.classDate && classInfo.startTime) {
-      startUTC = new Date(`${classInfo.classDate}T${classInfo.startTime}:00+05:30`).getTime();
-    } else {
-      // Fallback estimate: class started/starts 90 minutes before expiry
-      startUTC = expiryUTC - 90 * 60 * 1000;
-    }
-
-    const interval = setInterval(() => {
-      const nowUTC = Date.now();
-
-      if (expiryUTC <= nowUTC) {
-        setExpired(true);
-        setTimeLeft("Session Expired");
-        clearInterval(interval);
-        return;
-      }
-
-      // If class hasn't started yet
-      if (startUTC && nowUTC < startUTC) {
-        const diff = startUTC - nowUTC;
-        const totalSeconds = Math.floor(diff / 1000);
-        const hrs = Math.floor(totalSeconds / 3600);
-        const mins = Math.floor((totalSeconds % 3600) / 60);
-        const secs = totalSeconds % 60;
-        setTimeLeft(
-          hrs > 0
-            ? `Starts in ${hrs}h ${mins}m ${secs}s`
-            : `Starts in ${mins}m ${secs}s`
-        );
-      } else {
-        // Class is Live / In Progress
-        const diff = expiryUTC - nowUTC;
-        const totalSeconds = Math.floor(diff / 1000);
-        const hrs = Math.floor(totalSeconds / 3600);
-        const mins = Math.floor((totalSeconds % 3600) / 60);
-        const secs = totalSeconds % 60;
-        setTimeLeft(
-          hrs > 0
-            ? `Live • ${hrs}h ${mins}m ${secs}s left`
-            : `Live • ${mins}m ${secs}s left`
-        );
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [classInfo]);
-
-  // Format scheduled time helper
-  const getScheduledTimeString = () => {
-    if (!classInfo?.expiresAt) return "";
-    const expiryUTC = new Date(classInfo.expiresAt).getTime();
-    const startUTC =
-      classInfo.classDate && classInfo.startTime
-        ? new Date(`${classInfo.classDate}T${classInfo.startTime}:00+05:30`).getTime()
-        : expiryUTC - 90 * 60 * 1000;
-
-    const startStr = new Date(startUTC).toLocaleTimeString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-    const endStr = new Date(expiryUTC).toLocaleTimeString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-
-    return `${startStr} – ${endStr} (IST)`;
-  };
-
-  /* ================= INPUT HANDLER ================= */
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === "email" ? value.toLowerCase() : value
-    }));
-  };
+  const [joinedMeetUrl, setJoinedMeetUrl] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   /* ================= SUBMIT ================= */
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (expired) return;
+    if (expired || submitting) return;
 
     setError("");
     setMessage("");
-
-    // Open a blank tab SYNCHRONOUSLY here (before any async work) so that
-    // mobile browsers do not block it as a popup. We'll assign the meet URL
-    // into this tab once the API responds.
-    let meetTab = null;
-    try {
-      meetTab = window.open("about:blank", "_blank");
-    } catch (_) {
-      // Some browsers may still block; we'll fall back gracefully
-    }
+    setJoinedMeetUrl(null);
+    setSubmitting(true);
 
     try {
       const res = await API.post("/attendance/mark", {
@@ -210,29 +77,22 @@ const JoinClass = () => {
       });
 
       localStorage.setItem("studentProfile", JSON.stringify(formData));
-      setMessage(res.data.message || "Attendance marked successfully");
+      const successMsg = res.data.message || "Attendance marked successfully";
+      setMessage(successMsg);
 
       if (res.data.meetLink) {
-        if (meetTab && !meetTab.closed) {
-          // Redirect the already-opened blank tab to the meet link
-          meetTab.location.href = res.data.meetLink;
-        } else {
-          // Fallback: try window.open again or use location.href
-          try {
-            window.open(res.data.meetLink, "_blank");
-          } catch (_) {
-            window.location.href = res.data.meetLink;
-          }
-        }
-      } else {
-        // No meet link returned — close the blank tab we opened
-        if (meetTab && !meetTab.closed) meetTab.close();
-      }
+        const meetUrl = res.data.meetLink;
+        setJoinedMeetUrl(meetUrl);
 
+        // Perform direct navigation for mobile browsers (avoids popup blockers)
+        setTimeout(() => {
+          window.location.href = meetUrl;
+        }, 500);
+      }
     } catch (err) {
-      // Close the blank tab on API error so it doesn't hang open
-      if (meetTab && !meetTab.closed) meetTab.close();
       setError(err.response?.data?.message || "Unable to mark attendance");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -311,6 +171,24 @@ const JoinClass = () => {
           <div className="flex items-center gap-2.5 p-3 rounded-xl text-[13.5px] font-medium mb-3.5 leading-snug bg-[var(--danger-light)] border border-red-500/25 text-[var(--danger)]">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             {error}
+          </div>
+        )}
+
+        {/* Direct Google Meet Join Card (Crucial for Mobile browsers) */}
+        {joinedMeetUrl && (
+          <div className="flex flex-col items-center gap-3 p-4 rounded-xl text-center bg-indigo-500/15 border border-indigo-500/30 text-[var(--text)] mb-4">
+            <p className="text-xs font-semibold text-[var(--subtext)] m-0">
+              Opening Google Meet automatically... If it doesn't open, tap below:
+            </p>
+            <a
+              href={joinedMeetUrl}
+              target="_self"
+              rel="noreferrer"
+              className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl text-sm no-underline shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              Join Google Meet Now
+            </a>
           </div>
         )}
 
@@ -400,10 +278,20 @@ const JoinClass = () => {
 
             <button
               type="submit"
-              className="mt-1 py-3.5 px-4 text-[15px] font-bold bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-xl cursor-pointer transition-all duration-200 shadow-[0_4px_20px_rgba(99,102,241,0.4)] flex items-center justify-center gap-2 w-full tracking-wide hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(99,102,241,0.55)] active:scale-[0.98]"
+              disabled={submitting}
+              className="mt-1 py-3.5 px-4 text-[15px] font-bold bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-xl cursor-pointer transition-all duration-200 shadow-[0_4px_20px_rgba(99,102,241,0.4)] flex items-center justify-center gap-2 w-full tracking-wide hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(99,102,241,0.55)] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Mark Attendance & Join Class
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Mark Attendance & Join Class
+                </>
+              )}
             </button>
           </form>
         )}
