@@ -212,24 +212,56 @@ function EditClass() {
   };
 
   const applyDuration = (mins) => {
-    const [h, m] = form.startTime.split(":").map(Number);
-    const start = new Date();
-    start.setHours(h, m, 0, 0);
-    const end = new Date(start.getTime() + mins * 60 * 1000);
-    const endH = String(end.getHours()).padStart(2, "0");
-    const endM = String(end.getMinutes()).padStart(2, "0");
-    setForm((prev) => ({ ...prev, endTime: `${endH}:${endM}` }));
+    if (!form.startTime) return;
+    const [hStr, mStr] = form.startTime.split(":");
+    const h = parseInt(hStr || "0", 10);
+    const m = parseInt(mStr || "0", 10);
+
+    let totalMins = h * 60 + m + mins;
+    let endH = Math.floor(totalMins / 60) % 24;
+    let endM = totalMins % 60;
+
+    // Align to 5-minute interval for select option compatibility
+    endM = Math.round(endM / 5) * 5;
+    if (endM >= 60) {
+      endM = 0;
+      endH = (endH + 1) % 24;
+    }
+
+    const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+    setForm((prev) => ({ ...prev, endTime: endTimeStr }));
   };
 
   const extendTime = (mins) => {
-    const [h, m] = form.endTime.split(":").map(Number);
-    const end = new Date();
-    end.setHours(h, m, 0, 0);
-    const extended = new Date(end.getTime() + mins * 60 * 1000);
-    const endH = String(extended.getHours()).padStart(2, "0");
-    const endM = String(extended.getMinutes()).padStart(2, "0");
-    setForm((prev) => ({ ...prev, endTime: `${endH}:${endM}` }));
+    if (!form.endTime) return;
+    const [hStr, mStr] = form.endTime.split(":");
+    const h = parseInt(hStr || "0", 10);
+    const m = parseInt(mStr || "0", 10);
+
+    let totalMins = h * 60 + m + mins;
+    let endH = Math.floor(totalMins / 60) % 24;
+    let endM = totalMins % 60;
+
+    endM = Math.round(endM / 5) * 5;
+    if (endM >= 60) {
+      endM = 0;
+      endH = (endH + 1) % 24;
+    }
+
+    const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+    setForm((prev) => ({ ...prev, endTime: endTimeStr }));
   };
+
+  const currentDurationMins = (() => {
+    if (!form.startTime || !form.endTime) return 0;
+    const [sh, sm] = form.startTime.split(":").map(Number);
+    const [eh, em] = form.endTime.split(":").map(Number);
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return 0;
+    let startMins = sh * 60 + sm;
+    let endMins = eh * 60 + em;
+    if (endMins <= startMins) endMins += 24 * 60;
+    return endMins - startMins;
+  })();
 
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return "";
@@ -443,24 +475,34 @@ function EditClass() {
             {/* Quick Duration & Extension Chips */}
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               <span className="text-[11px] font-semibold text-[var(--subtext)]">Duration:</span>
-              <button type="button" className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)] hover:-translate-y-0.5 active:scale-95" onClick={() => applyDuration(45)}>
-                45m
-              </button>
-              <button type="button" className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)] hover:-translate-y-0.5 active:scale-95" onClick={() => applyDuration(60)}>
-                1h
-              </button>
-              <button type="button" className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)] hover:-translate-y-0.5 active:scale-95" onClick={() => applyDuration(90)}>
-                1.5h
-              </button>
-              <button type="button" className="bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)] hover:-translate-y-0.5 active:scale-95" onClick={() => applyDuration(120)}>
-                2h
-              </button>
+              {[
+                { label: "45m", mins: 45 },
+                { label: "1h", mins: 60 },
+                { label: "1.5h", mins: 90 },
+                { label: "2h", mins: 120 },
+              ].map((chip) => {
+                const isActive = currentDurationMins === chip.mins;
+                return (
+                  <button
+                    key={chip.mins}
+                    type="button"
+                    className={`text-[11.5px] font-bold py-1 px-3 rounded-full cursor-pointer transition-all duration-150 ${
+                      isActive
+                        ? "bg-[var(--primary)] text-white border border-[var(--primary)] shadow-[0_2px_8px_rgba(99,102,241,0.35)] scale-105"
+                        : "bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--primary-light)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                    }`}
+                    onClick={() => applyDuration(chip.mins)}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
               <span className="text-[var(--border)] text-[13px] mx-0.5">|</span>
               <span className="text-[11px] font-semibold text-[var(--subtext)]">Extend:</span>
-              <button type="button" className="bg-emerald-500/10 text-[var(--success)] border border-emerald-500/30 text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-emerald-500/20 hover:border-[var(--success)] hover:-translate-y-0.5 active:scale-95" onClick={() => extendTime(30)}>
+              <button type="button" className="bg-emerald-500/10 text-[var(--success)] border border-emerald-500/30 text-[11.5px] font-semibold py-1 px-2.5 rounded-full cursor-pointer transition-all hover:bg-emerald-500/20 hover:border-[var(--success)] hover:-translate-y-0.5 active:scale-95" onClick={() => extendTime(30)}>
                 +30m
               </button>
-              <button type="button" className="bg-emerald-500/10 text-[var(--success)] border border-emerald-500/30 text-[11.5px] font-semibold py-0.5 px-2.5 rounded-full cursor-pointer transition-all hover:bg-emerald-500/20 hover:border-[var(--success)] hover:-translate-y-0.5 active:scale-95" onClick={() => extendTime(60)}>
+              <button type="button" className="bg-emerald-500/10 text-[var(--success)] border border-emerald-500/30 text-[11.5px] font-semibold py-1 px-2.5 rounded-full cursor-pointer transition-all hover:bg-emerald-500/20 hover:border-[var(--success)] hover:-translate-y-0.5 active:scale-95" onClick={() => extendTime(60)}>
                 +1h
               </button>
             </div>
