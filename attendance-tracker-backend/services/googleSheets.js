@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import oauth2Client from "../config/googleOAuth.js";
+import { createOAuth2Client } from "../config/googleOAuth.js";
 
 /**
  * Create a new Google Sheet for a branch attendance register.
@@ -10,11 +10,13 @@ import oauth2Client from "../config/googleOAuth.js";
  * @returns {string} spreadsheetId
  */
 export const createBranchSheet = async (tokens, branchName) => {
-  oauth2Client.setCredentials({
+  // Fix #5: fresh client per call — avoids shared singleton credential mutation
+  const client = createOAuth2Client();
+  client.setCredentials({
     access_token: tokens.googleAccessToken || tokens.access_token,
     refresh_token: tokens.googleRefreshToken || tokens.refresh_token,
   });
-  const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+  const sheets = google.sheets({ version: "v4", auth: client });
 
   const response = await sheets.spreadsheets.create({
     resource: {
@@ -62,11 +64,13 @@ export const markStudentPresent = async (
   student,
   classDate
 ) => {
-  oauth2Client.setCredentials({
+  // Fix #5: fresh client per call
+  const client = createOAuth2Client();
+  client.setCredentials({
     access_token: tokens.googleAccessToken || tokens.access_token,
     refresh_token: tokens.googleRefreshToken || tokens.refresh_token,
   });
-  const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+  const sheets = google.sheets({ version: "v4", auth: client });
 
   // 1. Get first tab name
   let tabName = "Attendance";
@@ -273,11 +277,13 @@ export const exportClassAttendanceToSheet = async (
   sheetTitle,
   attendanceRecords
 ) => {
-  oauth2Client.setCredentials({
+  // Fix #5: fresh client per call
+  const client = createOAuth2Client();
+  client.setCredentials({
     access_token: tokens.googleAccessToken || tokens.access_token,
     refresh_token: tokens.googleRefreshToken || tokens.refresh_token,
   });
-  const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+  const sheets = google.sheets({ version: "v4", auth: client });
 
   const createRes = await sheets.spreadsheets.create({
     resource: {
@@ -349,11 +355,13 @@ export const exportClassAttendanceToSheet = async (
  * @returns {Promise<{spreadsheetId: string, sheetUrl: string}>}
  */
 export const exportOverallAttendanceToSheet = async (tokens, branchName, rows) => {
-  oauth2Client.setCredentials({
+  // Fix #5: fresh client per call
+  const client = createOAuth2Client();
+  client.setCredentials({
     access_token: tokens.googleAccessToken || tokens.access_token,
     refresh_token: tokens.googleRefreshToken || tokens.refresh_token,
   });
-  const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+  const sheets = google.sheets({ version: "v4", auth: client });
 
   const createRes = await sheets.spreadsheets.create({
     resource: {

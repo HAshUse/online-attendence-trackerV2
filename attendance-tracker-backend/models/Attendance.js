@@ -11,13 +11,13 @@ const attendanceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Class",
       required: true
-    },
-    date: {
-      type: Date,
-      default: Date.now
     }
+    // Note: `date` removed — use `createdAt` from timestamps instead
   },
   { timestamps: true }
 );
+
+// Compound unique index: prevents duplicate attendance and speeds up duplicate checks
+attendanceSchema.index({ student: 1, class: 1 }, { unique: true });
 
 export default mongoose.model("Attendance", attendanceSchema);

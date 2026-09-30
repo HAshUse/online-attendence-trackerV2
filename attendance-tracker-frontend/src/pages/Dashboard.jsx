@@ -73,7 +73,10 @@ function Dashboard() {
   const handleCopyLink = (classCode, e) => {
     e.stopPropagation();
     const joinUrl = `${window.location.origin}/join/${classCode}`;
-    navigator.clipboard.writeText(joinUrl);
+    navigator.clipboard.writeText(joinUrl).catch(() => {
+      // Fallback for non-HTTPS or denied clipboard permission
+      window.prompt("Copy this link:", joinUrl);
+    });
     setCopiedId(classCode);
     setTimeout(() => setCopiedId(null), 2000);
   };

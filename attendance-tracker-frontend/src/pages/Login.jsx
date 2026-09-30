@@ -6,6 +6,7 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -17,7 +18,9 @@ function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError("");
+    setLoading(true);
 
     try {
       const res = await API.post("/teachers/login", {
@@ -40,6 +43,8 @@ function Login() {
         err?.response?.data?.message ||
         "Invalid email or password"
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,9 +82,10 @@ function Login() {
 
           <button
             type="submit"
-            className="mt-1 py-3 px-4 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-lg text-[15px] font-semibold cursor-pointer transition-all duration-200 tracking-wide shadow-[0_4px_14px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] active:translate-y-0"
+            disabled={loading}
+            className={`mt-1 py-3 px-4 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-lg text-[15px] font-semibold transition-all duration-200 tracking-wide shadow-[0_4px_14px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] active:translate-y-0 ${loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 

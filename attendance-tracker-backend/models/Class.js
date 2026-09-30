@@ -67,4 +67,7 @@ const classSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Speed up dashboard queries that filter by teacher + branch
+classSchema.index({ teacher: 1, branch: 1 });
+
 export default mongoose.model("Class", classSchema);

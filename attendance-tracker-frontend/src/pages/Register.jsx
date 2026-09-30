@@ -10,6 +10,7 @@ function Register() {
     confirmPassword: ""
   });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -20,12 +21,14 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
 
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match!");
       return;
     }
 
+    setLoading(true);
     try {
       const res = await API.post("/teachers/register", {
         name: form.name,
@@ -44,6 +47,8 @@ function Register() {
       }
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -102,9 +107,10 @@ function Register() {
 
           <button
             type="submit"
-            className="mt-1.5 py-3 px-4 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-lg text-[15px] font-semibold cursor-pointer transition-all duration-200 tracking-wide shadow-[0_4px_14px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.45)] active:scale-[0.98]"
+            disabled={loading}
+            className={`mt-1.5 py-3 px-4 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-lg text-[15px] font-semibold transition-all duration-200 tracking-wide shadow-[0_4px_14px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.45)] active:scale-[0.98] ${loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
           >
-            Create Account
+            {loading ? "Creating Account..." : "Create Account"}
           </button>
         </form>
 

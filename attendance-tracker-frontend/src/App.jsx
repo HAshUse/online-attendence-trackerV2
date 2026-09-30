@@ -1,41 +1,3 @@
-// import { useState,useEffect } from "react";
-// import { BrowserRouter, Routes, Route } from "react-router-dom";
-// import Login from "./pages/Login";
-// import Register from "./pages/Register";
-// import Dashboard from "./pages/Dashboard";
-// import CreateClass from "./pages/CreateClass";
-// import ClassAttendance from "./pages/ClassAttendance";
-// import JoinClass from "./pages/JoinClass";
-// import OverallAttendance from "./pages/OverallAttendance";
-// import EditClass from "./pages/EditClass";
-// import Navbar from "./pages/Navbar";
-// function App() {
-   
-
-   
-//   return (
-//     <>
-//     <BrowserRouter>
-//     <Navbar    />
-//       <Routes>
-//         <Route path="/" element={<Login />} />
-//         <Route path="/register" element={<Register />} />
-//         <Route path="/dashboard" element={<Dashboard />} />
-//         <Route path="/create-class" element={<CreateClass />} />  
-//         <Route path="/class/:id" element={<ClassAttendance />} />
-//         <Route path="/join/:classCode" element={<JoinClass />} />
-//         <Route path="/overall-attendance" element={<OverallAttendance />} />
-//         <Route path="/edit-class/:id" element={<EditClass />} />
-
-
-//       </Routes> 
-//     </BrowserRouter>
-//     </>
-//   );
-// }
-
-// export default App;
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -86,4 +48,3 @@ function App() {
 }
 
 export default App;
-

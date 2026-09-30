@@ -22,24 +22,11 @@ router.post("/export-google-sheet/:classId", protect, exportClassToGoogleSheet);
 router.post("/export-google-sheet-overall/:branchId", protect, exportOverallToGoogleSheet);
 router.get("/summary/:classId", protect, getAttendanceSummary);
 router.get("/group-wise/:classId", protect, getGroupWiseAttendance);
-router.get(
-  "/college-group-wise/:classId",
-  protect,
-  getCollegeGroupWiseAttendance
-);
-router.get(
-  "/overall/:branchId",
-  protect,
-  getOverallAttendanceSummary
-);
+router.get("/college-group-wise/:classId", protect, getCollegeGroupWiseAttendance);
 
-router.get(
-  "/overall/export/:branchId",
-  protect,
-  exportOverallAttendanceExcel
-);
+// ⚠️ IMPORTANT: /overall/export/:branchId MUST come before /overall/:branchId
+// Otherwise Express treats "export" as the branchId value.
+router.get("/overall/export/:branchId", protect, exportOverallAttendanceExcel);
+router.get("/overall/:branchId", protect, getOverallAttendanceSummary);
 
-// router.get("/overall/:branchId", protect, getOverallAttendanceSummary);
-// router.get("/overall/export/:branchId", protect, exportOverallAttendanceExcel);
-
-export default router;
+export default router;

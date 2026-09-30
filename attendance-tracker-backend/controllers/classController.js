@@ -260,6 +260,8 @@ export const getClassByCode = async (req, res) => {
 
     const isExpired = new Date(foundClass.expiresAt) <= new Date();
 
+    // Note: meetLink is intentionally NOT returned here (public endpoint).
+    // It is only returned by POST /attendance/mark after attendance is recorded.
     res.status(200).json({ 
       className: foundClass.className,
       subject: foundClass.subject,
@@ -269,7 +271,6 @@ export const getClassByCode = async (req, res) => {
       startTime: foundClass.startTime,
       endTime: foundClass.endTime,
       expiresAt: foundClass.expiresAt,
-      meetLink: foundClass.meetLink,
       isExpired
     });
 

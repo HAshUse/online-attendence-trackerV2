@@ -157,7 +157,9 @@ export const exportAttendance = async (req, res) => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
 
-    const filePath = `attendance_${college || "all"}.xlsx`;
+    // Fix #4: Unique filename per request prevents concurrent export corruption
+    const safeCollege = (college || "all").replace(/[^a-z0-9_\-]/gi, "_");
+    const filePath = `attendance_${safeCollege}_${Date.now()}_${Math.random().toString(36).slice(2)}.xlsx`;
     XLSX.writeFile(workbook, filePath);
 
     res.download(filePath, () => fs.unlinkSync(filePath));
@@ -493,21 +495,26 @@ export const getOverallAttendanceSummary = async (req, res) => {
     const teacherId = req.user._id;
     const { branchId } = req.params;
 
-    const attendance = await Attendance.find()
-      .populate({
-        path: "class",
-        match: { teacher: teacherId, branch: branchId }, // ⭐ branch filter
-        select: "className"
-      })
-      .populate("student", "fullName email group college");
+    // Fix #8: Pre-filter by class IDs — avoids loading the entire Attendance collection
+    const branchClasses = await Class.find({
+      teacher: teacherId,
+      branch: branchId,
+    }).select("_id className");
 
-    const filtered = attendance.filter(a => a.class && a.student);
+    const totalClasses = branchClasses.length;
+    const classIds = branchClasses.map((c) => c._id);
+    const classMap = Object.fromEntries(branchClasses.map((c) => [c._id.toString(), c.className]));
+
+    const attendance = await Attendance.find({ class: { $in: classIds } })
+      .populate("student", "fullName email group college");
 
     const map = {};
 
-    filtered.forEach(record => {
+    attendance.forEach((record) => {
       const s = record.student;
-      const c = record.class;
+      if (!s) return;
+
+      const className = classMap[record.class.toString()] || "Class";
 
       if (!map[s.email]) {
         map[s.email] = {
@@ -515,21 +522,26 @@ export const getOverallAttendanceSummary = async (req, res) => {
           email: s.email,
           group: s.group,
           college: s.college,
-          classes: new Set()
+          classes: new Set(),
         };
       }
 
-      map[s.email].classes.add(c.className);
+      map[s.email].classes.add(className);
     });
 
     const result = Object.values(map)
-      .map(s => ({
+      .map((s) => ({
         fullName: s.fullName,
         email: s.email,
         group: s.group,
         college: s.college,
+        totalClasses,
         totalClassesJoined: s.classes.size,
-        classes: [...s.classes]
+        percentage:
+          totalClasses === 0
+            ? 0
+            : Math.round((s.classes.size / totalClasses) * 100),
+        classes: [...s.classes],
       }))
       .sort((a, b) => (a.college || "").localeCompare(b.college || ""));
 

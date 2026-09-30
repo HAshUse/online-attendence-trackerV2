@@ -1,27 +1,26 @@
 import Attendance from "../models/Attendance.js";
 import Class from "../models/Class.js";
 import Branch from "../models/Branch.js";
-import mongoose from "mongoose";
 import { sendLowAttendanceMail } from "./mailer.js";
 
 export const checkLowAttendance = async () => {
   console.log("🔍 Running low attendance scan...");
 
-  // get all branches
-  const branches = await Branch.find();
+  // Fix #6: Process per branch, scoped to the branch's teacher
+  const branches = await Branch.find().populate("teacher", "_id");
 
   for (const branch of branches) {
-
-    const classes = await Class.find({ branch: branch._id });
+    const classes = await Class.find({
+      branch: branch._id,
+      teacher: branch.teacher?._id  // scope to branch owner only
+    });
 
     if (classes.length === 0) continue;
 
     const classIds = classes.map(c => c._id);
-
-    // total class count
     const totalClasses = classes.length;
 
-    // get attendance
+    // Only get attendance for THIS branch's classes
     const attendance = await Attendance.find({
       class: { $in: classIds }
     }).populate("student");
@@ -43,7 +42,6 @@ export const checkLowAttendance = async () => {
       }
     });
 
-    // calculate %
     for (const email in map) {
       const student = map[email];
       const percentage = Math.round((student.attended / totalClasses) * 100);
