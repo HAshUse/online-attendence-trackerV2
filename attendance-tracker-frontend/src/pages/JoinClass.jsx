@@ -193,6 +193,16 @@ const JoinClass = () => {
     setError("");
     setMessage("");
 
+    // Open a blank tab SYNCHRONOUSLY here (before any async work) so that
+    // mobile browsers do not block it as a popup. We'll assign the meet URL
+    // into this tab once the API responds.
+    let meetTab = null;
+    try {
+      meetTab = window.open("about:blank", "_blank");
+    } catch (_) {
+      // Some browsers may still block; we'll fall back gracefully
+    }
+
     try {
       const res = await API.post("/attendance/mark", {
         ...formData,
@@ -200,14 +210,28 @@ const JoinClass = () => {
       });
 
       localStorage.setItem("studentProfile", JSON.stringify(formData));
-
       setMessage(res.data.message || "Attendance marked successfully");
 
       if (res.data.meetLink) {
-        setTimeout(() => window.open(res.data.meetLink, "_blank"), 800);
+        if (meetTab && !meetTab.closed) {
+          // Redirect the already-opened blank tab to the meet link
+          meetTab.location.href = res.data.meetLink;
+        } else {
+          // Fallback: try window.open again or use location.href
+          try {
+            window.open(res.data.meetLink, "_blank");
+          } catch (_) {
+            window.location.href = res.data.meetLink;
+          }
+        }
+      } else {
+        // No meet link returned — close the blank tab we opened
+        if (meetTab && !meetTab.closed) meetTab.close();
       }
 
     } catch (err) {
+      // Close the blank tab on API error so it doesn't hang open
+      if (meetTab && !meetTab.closed) meetTab.close();
       setError(err.response?.data?.message || "Unable to mark attendance");
     }
   };
