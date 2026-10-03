@@ -615,97 +615,146 @@ export const getOverallAttendanceSummary = async (req, res) => {
 //     res.status(500).json({ message: error.message });
 //   }
 // };
+/* =====================================================
+   HELPER: BUILD MATRIX REGISTER DATA FOR OVERALL BRANCH
+===================================================== */
+const buildBranchMatrixRegister = async (teacherId, branchId, selectedCollege = null) => {
+  // 1. Fetch all classes in branch sorted chronologically
+  const branchClasses = await Class.find({
+    teacher: teacherId,
+    branch: branchId,
+  })
+    .sort({ createdAt: 1 })
+    .select("_id className createdAt");
+
+  const totalClasses = branchClasses.length;
+  const classIds = branchClasses.map((c) => c._id);
+
+  // Column header titles for classes: "2026-09-11 (Class 1)"
+  const classHeaders = branchClasses.map((cls, idx) => {
+    const dateStr = cls.createdAt
+      ? cls.createdAt.toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0];
+    const className = cls.className || `Class ${idx + 1}`;
+    return `${dateStr} (${className})`;
+  });
+
+  // 2. Fetch all attendance records for these classes
+  const attendanceRecords = await Attendance.find({
+    class: { $in: classIds },
+  }).populate("student", "fullName email group college");
+
+  // 3. Build student map
+  const map = {};
+
+  attendanceRecords.forEach((record) => {
+    const s = record.student;
+    if (!s) return;
+
+    if (selectedCollege && s.college !== selectedCollege) return;
+
+    const emailKey = (s.email || "").trim().toLowerCase();
+    if (!emailKey) return;
+
+    if (!map[emailKey]) {
+      map[emailKey] = {
+        fullName: s.fullName || "Unknown",
+        email: s.email || "",
+        group: s.group || "",
+        college: s.college || "",
+        attendedClasses: new Set(),
+      };
+    }
+
+    if (record.class) {
+      map[emailKey].attendedClasses.add(record.class.toString());
+    }
+  });
+
+  // 4. Build Header Row and Data Rows
+  const header = [
+    "S.No",
+    "Full Name",
+    "Group",
+    "College",
+    ...classHeaders,
+    "Total Present",
+    "Total Absent",
+    "Attendance %",
+  ];
+
+  const sortedStudents = Object.values(map).sort((a, b) =>
+    (a.fullName || "").localeCompare(b.fullName || "")
+  );
+
+  const matrixRows = [header];
+
+  sortedStudents.forEach((student, idx) => {
+    let presentCount = 0;
+
+    const statusCells = branchClasses.map((cls) => {
+      const isPresent = student.attendedClasses.has(cls._id.toString());
+      if (isPresent) {
+        presentCount++;
+        return "P";
+      }
+      return "A";
+    });
+
+    const absentCount = totalClasses - presentCount;
+    const pct =
+      totalClasses === 0
+        ? "0%"
+        : Math.round((presentCount / totalClasses) * 100) + "%";
+
+    matrixRows.push([
+      idx + 1,
+      student.fullName,
+      student.group,
+      student.college,
+      ...statusCells,
+      presentCount,
+      absentCount,
+      pct,
+    ]);
+  });
+
+  return { header, matrixRows, totalClasses, studentCount: sortedStudents.length };
+};
+
+/* =====================================================
+   EXPORT OVERALL ATTENDANCE TO EXCEL (MATRIX REGISTER)
+===================================================== */
 export const exportOverallAttendanceExcel = async (req, res) => {
   try {
     const teacherId = req.user._id;
     const { branchId } = req.params;
     const selectedCollege = req.query.college;
 
-    /* ================= GET TOTAL CLASSES IN BRANCH ================= */
+    const { matrixRows } = await buildBranchMatrixRegister(
+      teacherId,
+      branchId,
+      selectedCollege
+    );
 
-    const branchClasses = await Class.find({
-      teacher: teacherId,
-      branch: branchId
-    }).select("_id className createdAt");
-
-    const totalClasses = branchClasses.length;
-
-    const classIdSet = new Set(branchClasses.map(c => c._id.toString()));
-
-    /* ================= GET ATTENDANCE ================= */
-
-    const attendance = await Attendance.find({
-      class: { $in: [...classIdSet] }
-    })
-    .populate("class", "className createdAt")
-    .populate("student", "fullName email group college");
-
-    /* ================= BUILD STUDENT MAP ================= */
-
-    const map = {};
-
-    attendance.forEach(r => {
-      const s = r.student;
-      if (!s) return;
-
-      if (selectedCollege && s.college !== selectedCollege) return;
-
-      const classDate = r.class.createdAt.toISOString().split("T")[0];
-      const label = `${classDate} - ${r.class.className}`;
-
-      if (!map[s.email]) {
-        map[s.email] = {
-          FullName: s.fullName,
-          Email: s.email,
-          Group: s.group,
-          College: s.college,
-          attended: new Set()
-        };
-      }
-
-      map[s.email].attended.add(label);
-    });
-
-    /* ================= FORMAT ROWS ================= */
-
-    const rows = Object.values(map).map(student => ({
-      FullName: student.FullName,
-      Email: student.Email,
-      Group: student.Group,
-      College: student.College,
-
-      TotalClasses: totalClasses, // ⭐ FIX ADDED
-      TotalClassesJoined: student.attended.size,
-
-      AttendancePercentage:
-        totalClasses === 0
-          ? "0%"
-          : Math.round((student.attended.size / totalClasses) * 100) + "%",
-
-      Classes: Array.from(student.attended).join(", ")
-    }));
-
-    /* ================= EXCEL ================= */
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const worksheet = XLSX.utils.aoa_to_sheet(matrixRows);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Register");
 
-    const fileName = selectedCollege 
+    const fileName = selectedCollege
       ? `${selectedCollege}_${branchId}_attendance.xlsx`
       : `branch_${branchId}_attendance.xlsx`;
 
     XLSX.writeFile(workbook, fileName);
     res.download(fileName, () => fs.unlinkSync(fileName));
-
   } catch (error) {
-    console.error(error);
+    console.error("Excel overall export error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
 /* =====================================================
-   EXPORT OVERALL ATTENDANCE TO GOOGLE SHEETS
+   EXPORT OVERALL ATTENDANCE TO GOOGLE SHEETS (MATRIX REGISTER)
 ===================================================== */
 export const exportOverallToGoogleSheet = async (req, res) => {
   try {
@@ -724,57 +773,14 @@ export const exportOverallToGoogleSheet = async (req, res) => {
       return res.status(404).json({ message: "Branch not found" });
     }
 
-    const branchClasses = await Class.find({
-      teacher: teacherId,
-      branch: branchId,
-    }).select("_id className createdAt");
+    const { matrixRows, studentCount } = await buildBranchMatrixRegister(
+      teacherId,
+      branchId
+    );
 
-    const totalClasses = branchClasses.length;
-    const classIdSet = new Set(branchClasses.map((c) => c._id.toString()));
-
-    const attendance = await Attendance.find({
-      class: { $in: [...classIdSet] },
-    })
-      .populate("class", "className createdAt")
-      .populate("student", "fullName email group college");
-
-    if (!attendance.length) {
+    if (studentCount === 0) {
       return res.status(404).json({ message: "No attendance records found for this branch" });
     }
-
-    const map = {};
-    attendance.forEach((r) => {
-      const s = r.student;
-      if (!s) return;
-
-      const classDate = r.class?.createdAt ? r.class.createdAt.toISOString().split("T")[0] : "";
-      const label = `${classDate} - ${r.class?.className || "Class"}`;
-
-      if (!map[s.email]) {
-        map[s.email] = {
-          FullName: s.fullName,
-          Email: s.email,
-          Group: s.group,
-          College: s.college,
-          attended: new Set(),
-        };
-      }
-      map[s.email].attended.add(label);
-    });
-
-    const rows = Object.values(map).map((student) => ({
-      FullName: student.FullName,
-      Email: student.Email,
-      Group: student.Group,
-      College: student.College,
-      TotalClasses: totalClasses,
-      TotalClassesJoined: student.attended.size,
-      AttendancePercentage:
-        totalClasses === 0
-          ? "0%"
-          : Math.round((student.attended.size / totalClasses) * 100) + "%",
-      Classes: Array.from(student.attended).join(", "),
-    }));
 
     const tokens = {
       googleAccessToken: teacher.googleAccessToken,
@@ -784,11 +790,11 @@ export const exportOverallToGoogleSheet = async (req, res) => {
     const sheetResult = await exportOverallAttendanceToSheet(
       tokens,
       branch.name,
-      rows
+      matrixRows
     );
 
     res.json({
-      message: "Exported overall attendance to Google Sheets successfully",
+      message: "Exported overall attendance register to Google Sheets successfully",
       sheetUrl: sheetResult.sheetUrl,
     });
   } catch (error) {
