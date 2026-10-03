@@ -109,14 +109,33 @@ function CreateClass() {
   const { branchId } = useParams();
   const [loading, setLoading] = useState(false);
 
-  // Helper to format local date & time in IST
+  // Helper to format local date & time in IST (5-minute rounded)
   const getInitialTimes = () => {
     const now = new Date();
-    const todayStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-    const startTimeStr = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const ist = new Date(utc + 330 * 60000);
 
-    const later = new Date(now.getTime() + 90 * 60 * 1000); // +90 mins
-    const endTimeStr = later.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
+    let mins = Math.ceil(ist.getMinutes() / 5) * 5;
+    if (mins >= 60) {
+      ist.setHours(ist.getHours() + 1);
+      mins = 0;
+    }
+    ist.setMinutes(mins, 0, 0);
+
+    const y = ist.getFullYear();
+    const m = String(ist.getMonth() + 1).padStart(2, "0");
+    const d = String(ist.getDate()).padStart(2, "0");
+    const todayStr = `${y}-${m}-${d}`;
+
+    const startH = String(ist.getHours()).padStart(2, "0");
+    const startM = String(ist.getMinutes()).padStart(2, "0");
+    const startTimeStr = `${startH}:${startM}`;
+
+    // Default 60 mins duration
+    const later = new Date(ist.getTime() + 60 * 60 * 1000);
+    const endH = String(later.getHours()).padStart(2, "0");
+    const endM = String(later.getMinutes()).padStart(2, "0");
+    const endTimeStr = `${endH}:${endM}`;
 
     return { todayStr, startTimeStr, endTimeStr };
   };
@@ -163,6 +182,26 @@ function CreateClass() {
 
     const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
     setForm((prev) => ({ ...prev, endTime: endTimeStr }));
+  };
+
+  const handleStartTimeChange = (newStartTime) => {
+    const duration = currentDurationMins || 60;
+    const [hStr, mStr] = newStartTime.split(":");
+    const h = parseInt(hStr || "0", 10);
+    const m = parseInt(mStr || "0", 10);
+
+    let totalMins = h * 60 + m + duration;
+    let endH = Math.floor(totalMins / 60) % 24;
+    let endM = totalMins % 60;
+
+    endM = Math.round(endM / 5) * 5;
+    if (endM >= 60) {
+      endM = 0;
+      endH = (endH + 1) % 24;
+    }
+
+    const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+    setForm((prev) => ({ ...prev, startTime: newStartTime, endTime: endTimeStr }));
   };
 
   const currentDurationMins = (() => {
@@ -306,7 +345,7 @@ function CreateClass() {
                 <TimePickerInput
                   label="Start Time"
                   value={form.startTime}
-                  onChange={(newTime) => setForm({ ...form, startTime: newTime })}
+                  onChange={handleStartTimeChange}
                 />
               </div>
 
