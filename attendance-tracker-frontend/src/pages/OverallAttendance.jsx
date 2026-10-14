@@ -119,11 +119,21 @@ function OverallAttendance() {
     } catch (err) {
       if (newTab && !newTab.closed) newTab.close();
       const msg = err.response?.data?.message || "";
-      if (
+      const isGoogleAuthError =
+        err.response?.data?.isGoogleAuthError ||
+        err.response?.status === 401 ||
+        err.response?.status === 400 ||
+        msg.toLowerCase().includes("invalid_grant") ||
         msg.toLowerCase().includes("connect your google") ||
         msg.toLowerCase().includes("google account") ||
-        err.response?.status === 400
-      ) {
+        msg.toLowerCase().includes("expired") ||
+        msg.toLowerCase().includes("revoked");
+
+      if (isGoogleAuthError) {
+        showToast(
+          msg || "Your Google session expired. Please reconnect your Google Account.",
+          "warning"
+        );
         setShowGoogleModal(true);
       } else {
         showToast(msg || "Failed to export to Google Sheets", "error");

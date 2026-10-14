@@ -13,6 +13,45 @@ import {
 import XLSX from "xlsx";
 import fs from "fs";
 
+/**
+ * Gracefully handles Google API errors (specifically invalid_grant / expired tokens)
+ * Auto-unsets stale tokens in MongoDB and instructs frontend to prompt reconnection.
+ */
+const handleGoogleApiError = async (error, teacherId, res, defaultMsg) => {
+  console.error(defaultMsg, error);
+  const errStr = `${error?.message || ""} ${error?.response?.data?.error || ""} ${JSON.stringify(error?.response?.data || {})}`.toLowerCase();
+
+  if (
+    errStr.includes("invalid_grant") ||
+    errStr.includes("invalid credentials") ||
+    errStr.includes("token has been expired or revoked") ||
+    errStr.includes("token expired")
+  ) {
+    try {
+      if (teacherId) {
+        await Teacher.findByIdAndUpdate(teacherId, {
+          $unset: {
+            googleAccessToken: 1,
+            googleRefreshToken: 1,
+            googleTokenExpiry: 1,
+            googleEmail: 1,
+            googleConnectedAt: 1,
+          },
+        });
+      }
+    } catch (dbErr) {
+      console.error("Failed to unset expired Google tokens:", dbErr);
+    }
+
+    return res.status(401).json({
+      message: "Your Google session has expired or was revoked. Please reconnect your Google Account.",
+      isGoogleAuthError: true,
+    });
+  }
+
+  return res.status(500).json({ message: error.message || defaultMsg });
+};
+
 /* =====================================================
    MARK ATTENDANCE
 ===================================================== */
@@ -211,8 +250,7 @@ export const exportClassToGoogleSheet = async (req, res) => {
       sheetUrl: sheetResult.sheetUrl,
     });
   } catch (error) {
-    console.error("Google Sheets export error:", error);
-    res.status(500).json({ message: error.message || "Google Sheets export failed" });
+    return handleGoogleApiError(error, req.user._id, res, "Google Sheets export failed");
   }
 };
 
@@ -798,8 +836,7 @@ export const exportOverallToGoogleSheet = async (req, res) => {
       sheetUrl: sheetResult.sheetUrl,
     });
   } catch (error) {
-    console.error("Google Sheets overall export error:", error);
-    res.status(500).json({ message: error.message || "Failed to export to Google Sheets" });
+    return handleGoogleApiError(error, teacherId, res, "Failed to export to Google Sheets");
   }
 };
 
