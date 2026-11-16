@@ -348,13 +348,13 @@ export const exportClassAttendanceToSheet = async (
 };
 
 /**
- * Export overall branch attendance summary to a Google Sheet
+ * Export overall branch attendance matrix register to a Google Sheet
  * @param {object} tokens - Teacher's Google tokens
  * @param {string} branchName - Name of the branch
- * @param {Array} rows - Array of student summary objects
+ * @param {Array<Array>} sheetData - 2D Array [headerRow, ...studentRows]
  * @returns {Promise<{spreadsheetId: string, sheetUrl: string}>}
  */
-export const exportOverallAttendanceToSheet = async (tokens, branchName, rows) => {
+export const exportOverallAttendanceToSheet = async (tokens, branchName, sheetData) => {
   // Fix #5: fresh client per call
   const client = createOAuth2Client();
   client.setCredentials({
@@ -368,42 +368,14 @@ export const exportOverallAttendanceToSheet = async (tokens, branchName, rows) =
       properties: { title: `Overall Attendance — ${branchName}` },
       sheets: [
         {
-          properties: { title: "Overall Summary" },
+          properties: { title: "Attendance Register" },
         },
       ],
     },
   });
 
   const spreadsheetId = createRes.data.spreadsheetId;
-  const tabName = "Overall Summary";
-
-  const header = [
-    "S.No",
-    "Full Name",
-    "Email",
-    "Group",
-    "College",
-    "Total Classes",
-    "Total Classes Joined",
-    "Attendance %",
-    "Classes Attended",
-  ];
-
-  const sheetData = [header];
-
-  rows.forEach((student, index) => {
-    sheetData.push([
-      index + 1,
-      student.FullName || "",
-      student.Email || "",
-      student.Group || "",
-      student.College || "",
-      student.TotalClasses || 0,
-      student.TotalClassesJoined || 0,
-      student.AttendancePercentage || "0%",
-      student.Classes || "",
-    ]);
-  });
+  const tabName = "Attendance Register";
 
   const safeRange = `'${tabName}'!A1`;
   await sheets.spreadsheets.values.update({
@@ -412,6 +384,92 @@ export const exportOverallAttendanceToSheet = async (tokens, branchName, rows) =
     valueInputOption: "USER_ENTERED",
     resource: { values: sheetData },
   });
+
+  // Apply styling & conditional formatting (Green for P, Red for A, Header styling)
+  try {
+    const sheetIdNum = createRes.data.sheets[0].properties.sheetId;
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          // Freeze header row
+          {
+            updateSheetProperties: {
+              properties: {
+                sheetId: sheetIdNum,
+                gridProperties: { frozenRowCount: 1 },
+              },
+              fields: "gridProperties.frozenRowCount",
+            },
+          },
+          // Header row styling (Dark navy background, bold white text)
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheetIdNum,
+                startRowIndex: 0,
+                endRowIndex: 1,
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.125, green: 0.18, blue: 0.35 },
+                  textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                  horizontalAlignment: "CENTER",
+                },
+              },
+              fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+            },
+          },
+          // Conditional format rule for "P" (Present - Soft Green)
+          {
+            addConditionalFormatRule: {
+              rule: {
+                ranges: [
+                  {
+                    sheetId: sheetIdNum,
+                    startRowIndex: 1,
+                    startColumnIndex: 4,
+                  },
+                ],
+                booleanRule: {
+                  condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "P" }] },
+                  format: {
+                    backgroundColor: { red: 0.85, green: 0.92, blue: 0.83 },
+                    textFormat: { bold: true, foregroundColor: { red: 0.15, green: 0.31, blue: 0.07 } },
+                  },
+                },
+              },
+              index: 0,
+            },
+          },
+          // Conditional format rule for "A" (Absent - Soft Red)
+          {
+            addConditionalFormatRule: {
+              rule: {
+                ranges: [
+                  {
+                    sheetId: sheetIdNum,
+                    startRowIndex: 1,
+                    startColumnIndex: 4,
+                  },
+                ],
+                booleanRule: {
+                  condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "A" }] },
+                  format: {
+                    backgroundColor: { red: 0.95, green: 0.8, blue: 0.8 },
+                    textFormat: { bold: true, foregroundColor: { red: 0.45, green: 0.1, blue: 0.28 } },
+                  },
+                },
+              },
+              index: 1,
+            },
+          },
+        ],
+      },
+    });
+  } catch (styleErr) {
+    console.warn("Could not apply Sheet styles (non-critical):", styleErr.message);
+  }
 
   return {
     spreadsheetId,

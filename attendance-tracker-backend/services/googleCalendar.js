@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import oauth2Client from "../config/googleOAuth.js";
+import { createOAuth2Client } from "../config/googleOAuth.js";
 
 /**
  * Create a Google Calendar event with a Meet link attached.
@@ -23,12 +23,13 @@ export const createMeetLink = async (
     throw new Error("Google account not connected");
   }
 
-  oauth2Client.setCredentials({
+  const client = createOAuth2Client();
+  client.setCredentials({
     access_token: teacher.googleAccessToken,
     refresh_token: teacher.googleRefreshToken,
   });
 
-  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  const calendar = google.calendar({ version: "v3", auth: client });
 
   let startObj = new Date(startTime);
   let endObj = new Date(endTime);

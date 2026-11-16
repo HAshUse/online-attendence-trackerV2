@@ -252,6 +252,26 @@ function EditClass() {
     setForm((prev) => ({ ...prev, endTime: endTimeStr }));
   };
 
+  const handleStartTimeChange = (newStartTime) => {
+    const duration = currentDurationMins || 60;
+    const [hStr, mStr] = newStartTime.split(":");
+    const h = parseInt(hStr || "0", 10);
+    const m = parseInt(mStr || "0", 10);
+
+    let totalMins = h * 60 + m + duration;
+    let endH = Math.floor(totalMins / 60) % 24;
+    let endM = totalMins % 60;
+
+    endM = Math.round(endM / 5) * 5;
+    if (endM >= 60) {
+      endM = 0;
+      endH = (endH + 1) % 24;
+    }
+
+    const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+    setForm((prev) => ({ ...prev, startTime: newStartTime, endTime: endTimeStr }));
+  };
+
   const currentDurationMins = (() => {
     if (!form.startTime || !form.endTime) return 0;
     const [sh, sm] = form.startTime.split(":").map(Number);
@@ -459,7 +479,7 @@ function EditClass() {
                 <TimePickerInput
                   label="Start Time"
                   value={form.startTime}
-                  onChange={(newTime) => setForm({ ...form, startTime: newTime })}
+                  onChange={handleStartTimeChange}
                 />
               </div>
 

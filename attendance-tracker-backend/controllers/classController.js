@@ -1,6 +1,7 @@
 import Class from "../models/Class.js";
 import Attendance from "../models/Attendance.js";
 import Branch from "../models/Branch.js";
+import Teacher from "../models/Teacher.js";
 import { createMeetLink } from "../services/googleCalendar.js";
 
 /**
@@ -68,6 +69,17 @@ export const createClass = async (req, res) => {
         );
       } catch (calendarErr) {
         console.error("Google Calendar Meet link creation failed:", calendarErr.message);
+        if (`${calendarErr.message}`.toLowerCase().includes("invalid_grant")) {
+          await Teacher.findByIdAndUpdate(req.user._id, {
+            $unset: {
+              googleAccessToken: 1,
+              googleRefreshToken: 1,
+              googleTokenExpiry: 1,
+              googleEmail: 1,
+              googleConnectedAt: 1,
+            },
+          }).catch(() => {});
+        }
       }
     }
 
@@ -210,6 +222,17 @@ export const updateClass = async (req, res) => {
         }
       } catch (calErr) {
         console.error("Failed to regenerate Google Meet link:", calErr.message);
+        if (`${calErr.message}`.toLowerCase().includes("invalid_grant")) {
+          await Teacher.findByIdAndUpdate(req.user._id, {
+            $unset: {
+              googleAccessToken: 1,
+              googleRefreshToken: 1,
+              googleTokenExpiry: 1,
+              googleEmail: 1,
+              googleConnectedAt: 1,
+            },
+          }).catch(() => {});
+        }
       }
     } else if (meetLink) {
       classDoc.meetLink = meetLink;

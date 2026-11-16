@@ -59,6 +59,126 @@ const JoinClass = () => {
   const [joinedMeetUrl, setJoinedMeetUrl] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  /* ================= FETCH CLASS INFO & COLLEGES ================= */
+
+  useEffect(() => {
+    const fetchClass = async () => {
+      try {
+        const res = await API.get(`/classes/by-code/${classCode}`);
+        setClassInfo(res.data);
+        if (res.data.isExpired || new Date(res.data.expiresAt) <= new Date()) {
+          setExpired(true);
+          setTimeLeft("Expired");
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || "Invalid or expired class link");
+        setExpired(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchColleges = async () => {
+      try {
+        const res = await API.get("/colleges");
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          setColleges(res.data);
+          localStorage.setItem("app_colleges", JSON.stringify(res.data));
+        }
+      } catch (err) {
+        console.warn("Error loading colleges list, using cached/defaults:", err);
+      }
+    };
+
+    fetchClass();
+    fetchColleges();
+  }, [classCode]);
+
+  /* ================= COUNTDOWN (IST TIMEZONE) ================= */
+
+  useEffect(() => {
+    if (!classInfo?.expiresAt) return;
+
+    const expiryUTC = new Date(classInfo.expiresAt).getTime();
+
+    let startUTC = null;
+    if (classInfo.classDate && classInfo.startTime) {
+      startUTC = new Date(`${classInfo.classDate}T${classInfo.startTime}:00+05:30`).getTime();
+    } else {
+      startUTC = expiryUTC - 90 * 60 * 1000;
+    }
+
+    const interval = setInterval(() => {
+      const nowUTC = Date.now();
+
+      if (expiryUTC <= nowUTC) {
+        setExpired(true);
+        setTimeLeft("Session Expired");
+        clearInterval(interval);
+        return;
+      }
+
+      if (startUTC && nowUTC < startUTC) {
+        const diff = startUTC - nowUTC;
+        const totalSeconds = Math.floor(diff / 1000);
+        const hrs = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        setTimeLeft(
+          hrs > 0
+            ? `Starts in ${hrs}h ${mins}m ${secs}s`
+            : `Starts in ${mins}m ${secs}s`
+        );
+      } else {
+        const diff = expiryUTC - nowUTC;
+        const totalSeconds = Math.floor(diff / 1000);
+        const hrs = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        setTimeLeft(
+          hrs > 0
+            ? `Live • ${hrs}h ${mins}m ${secs}s left`
+            : `Live • ${mins}m ${secs}s left`
+        );
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [classInfo]);
+
+  const getScheduledTimeString = () => {
+    if (!classInfo?.expiresAt) return "";
+    const expiryUTC = new Date(classInfo.expiresAt).getTime();
+    const startUTC =
+      classInfo.classDate && classInfo.startTime
+        ? new Date(`${classInfo.classDate}T${classInfo.startTime}:00+05:30`).getTime()
+        : expiryUTC - 90 * 60 * 1000;
+
+    const startStr = new Date(startUTC).toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const endStr = new Date(expiryUTC).toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    return `${startStr} – ${endStr} (IST)`;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === "email" ? value.toLowerCase() : value
+    }));
+  };
+
   /* ================= SUBMIT ================= */
 
   const handleSubmit = async (e) => {
