@@ -3,6 +3,9 @@ import { createOAuth2Client } from "../config/googleOAuth.js";
 
 /**
  * Create a Google Calendar event with a Meet link attached.
+ * After creation, patches the Meet space via Meet API v2 to set accessType = OPEN
+ * so students can join without "Ask to join" approval.
+ *
  * @param {object} teacher - Teacher document with stored Google tokens
  * @param {string} title - Class/event title
  * @param {Date|string} startTime - Event start date & time
@@ -73,6 +76,27 @@ export const createMeetLink = async (
     response.data.conferenceData?.entryPoints?.find(
       (ep) => ep.entryPointType === "video"
     )?.uri || response.data.hangoutLink;
+
+  // Patch the Meet space to set accessType = OPEN (removes "Ask to join" for students)
+  if (isOpen && meetLink) {
+    try {
+      // Extract meeting code from Meet link (e.g. "abc-defg-hij" from "https://meet.google.com/abc-defg-hij")
+      const meetingCode = meetLink.split("/").pop().split("?")[0];
+      if (meetingCode) {
+        const meetApi = google.meet({ version: "v2", auth: client });
+        await meetApi.spaces.patch({
+          name: `spaces/${meetingCode}`,
+          updateMask: "config.accessType",
+          requestBody: {
+            config: { accessType: "OPEN" },
+          },
+        });
+      }
+    } catch (patchErr) {
+      // Non-fatal: Meet link still works, just may show "Ask to join"
+      console.warn("Meet space patch failed (accessType not set to OPEN):", patchErr.message);
+    }
+  }
 
   return meetLink;
 };

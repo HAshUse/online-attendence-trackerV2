@@ -37,7 +37,8 @@ API.interceptors.response.use(
         // Clear invalid auth data
         localStorage.removeItem("token");
         localStorage.removeItem("teacher");
-        window.dispatchEvent(new Event("authChange"));
+        localStorage.removeItem("googleStatus");
+        window.dispatchEvent(new Event("authChange")); // Navbar listens → redirects to login
 
         const isAuthMsg =
           !rawMsg ||

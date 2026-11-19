@@ -40,6 +40,22 @@ function Navbar() {
     setOpen(false);
   }, [location.pathname]);
 
+  // Auto-logout when JWT expires (triggered by 401 interceptor in api.js)
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("teacher");
+      localStorage.removeItem("googleStatus");
+      setHasToken(false);
+      setAuthTeacher(null);
+      setOpen(false);
+      setGoogleStatus({ connected: false, googleEmail: null });
+      navigate("/");
+    };
+    window.addEventListener("authChange", handleAuthExpired);
+    return () => window.removeEventListener("authChange", handleAuthExpired);
+  }, [navigate]);
+
   // Close dropdown on outside click
   useEffect(() => {
     if (!open) return;
