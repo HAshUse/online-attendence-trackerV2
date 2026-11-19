@@ -635,6 +635,10 @@ function EditClass() {
                 </button>
               </div>
 
+              <div className="bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs p-2.5 rounded-lg leading-relaxed">
+                <span className="font-bold">⚠️ Note:</span> Auto-generated Meet links may show <span className="font-semibold">"Ask to join"</span> for students. Use your personal Google Meet link (Custom Link tab) and join first as the host to avoid this.
+              </div>
+
               {form.meetLink && (
                 <div className="flex items-center justify-between p-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-xs">
                   <span className="text-[var(--subtext)] truncate mr-2">Attached: <strong className="text-[var(--text)]">{form.meetLink}</strong></span>

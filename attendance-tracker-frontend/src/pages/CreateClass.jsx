@@ -475,6 +475,9 @@ function CreateClass() {
               <div className="bg-[var(--primary-light)] border border-indigo-500/25 text-[var(--primary)] text-xs p-2.5 sm:p-3.5 rounded-lg mb-1 leading-relaxed">
                 <span className="font-bold">📅 Google Calendar:</span> Meet link will be automatically created and attached to this session.
               </div>
+              <div className="bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs p-2.5 sm:p-3.5 rounded-lg mb-1 leading-relaxed">
+                <span className="font-bold">⚠️ Note:</span> Auto-generated Meet links may show <span className="font-semibold">"Ask to join"</span> for students. To avoid this, use <span className="font-semibold">Custom Meet Link</span> with your personal Google Meet link, and make sure you (the host) join first.
+              </div>
             </div>
           ) : (
             /* CUSTOM MEET LINK MODE: Paste link input */

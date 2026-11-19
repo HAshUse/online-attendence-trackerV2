@@ -149,6 +149,8 @@ const JoinClass = () => {
   const getScheduledTimeString = () => {
     if (!classInfo?.expiresAt) return "";
     const expiryUTC = new Date(classInfo.expiresAt).getTime();
+
+    // Use stored startTime string directly if available (avoids timezone drift)
     const startUTC =
       classInfo.classDate && classInfo.startTime
         ? new Date(`${classInfo.classDate}T${classInfo.startTime}:00+05:30`).getTime()
@@ -160,12 +162,24 @@ const JoinClass = () => {
       minute: "2-digit",
       hour12: true,
     });
-    const endStr = new Date(expiryUTC).toLocaleTimeString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+
+    // Use stored endTime string directly if available to avoid expiresAt drift
+    let endStr;
+    if (classInfo.classDate && classInfo.endTime) {
+      endStr = new Date(`${classInfo.classDate}T${classInfo.endTime}:00+05:30`).toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } else {
+      endStr = new Date(expiryUTC).toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
 
     return `${startStr} – ${endStr} (IST)`;
   };
