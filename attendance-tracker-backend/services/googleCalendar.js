@@ -3,6 +3,9 @@ import { createOAuth2Client } from "../config/googleOAuth.js";
 
 /**
  * Create a Google Calendar event with a Meet link attached.
+ * For "open" access, creates the space via Google Meet API v2 with accessType: OPEN,
+ * then attaches it as native conferenceData to the Google Calendar event.
+ *
  * @param {object} teacher - Teacher document with stored Google tokens
  * @param {string} title - Class/event title
  * @param {Date|string} startTime - Event start date & time
@@ -45,23 +48,70 @@ export const createMeetLink = async (
   const endIso = endObj.toISOString();
 
   const isOpen = accessType === "open";
+  let meetLink = "";
+  let meetingCode = "";
 
+  // 1. If open access, create space via Meet API v2 with accessType = "OPEN"
+  if (isOpen) {
+    try {
+      const meetApi = google.meet({ version: "v2", auth: client });
+      const spaceRes = await meetApi.spaces.create({
+        requestBody: {
+          config: {
+            accessType: "OPEN",
+            entryPointAccess: "ALL",
+          },
+        },
+      });
+      meetLink = spaceRes.data?.meetingUri || "";
+      meetingCode =
+        spaceRes.data?.meetingCode ||
+        (meetLink ? meetLink.split("/").pop().split("?")[0] : "");
+    } catch (meetErr) {
+      console.warn("Direct Meet space creation failed, falling back to Calendar conferenceData:", meetErr.message);
+    }
+  }
+
+  // 2. Build Google Calendar Event
   const event = {
     summary: title,
-    description: description,
+    description: meetLink
+      ? `${description ? description + "\n\n" : ""}Join Meeting: ${meetLink}`
+      : description,
+    location: meetLink || "",
     visibility: isOpen ? "public" : "default",
     guestsCanInviteOthers: isOpen,
     guestsCanSeeOtherGuests: true,
     anyoneCanAddSelf: isOpen,
     start: { dateTime: startIso },
     end: { dateTime: endIso },
-    conferenceData: {
+  };
+
+  if (meetLink && meetingCode) {
+    // Attach pre-created open Meet space to Calendar event
+    event.conferenceData = {
+      conferenceId: meetingCode,
+      entryPoints: [
+        {
+          entryPointType: "video",
+          uri: meetLink,
+          label: meetLink.replace("https://", ""),
+        },
+      ],
+      conferenceSolution: {
+        key: { type: "hangoutsMeet" },
+        name: "Google Meet",
+      },
+    };
+  } else {
+    // Fallback or restricted mode: standard Calendar conferenceData
+    event.conferenceData = {
       createRequest: {
         requestId: `meet-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         conferenceSolutionKey: { type: "hangoutsMeet" },
       },
-    },
-  };
+    };
+  }
 
   const response = await calendar.events.insert({
     calendarId: "primary",
@@ -69,10 +119,12 @@ export const createMeetLink = async (
     conferenceDataVersion: 1,
   });
 
-  const meetLink =
+  const finalMeetLink =
+    meetLink ||
     response.data.conferenceData?.entryPoints?.find(
       (ep) => ep.entryPointType === "video"
-    )?.uri || response.data.hangoutLink;
+    )?.uri ||
+    response.data.hangoutLink;
 
-  return meetLink;
+  return finalMeetLink;
 };

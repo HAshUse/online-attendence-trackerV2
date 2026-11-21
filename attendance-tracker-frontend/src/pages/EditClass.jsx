@@ -635,6 +635,10 @@ function EditClass() {
                 </button>
               </div>
 
+              <div className="bg-[var(--primary-light)] border border-indigo-500/25 text-[var(--primary)] text-xs p-2.5 rounded-lg leading-relaxed">
+                <span className="font-bold">📅 Google Calendar & Meet:</span> Generates an open Google Meet link and attaches it to your Google Calendar for seamless one-click joining.
+              </div>
+
               {form.meetLink && (
                 <div className="flex items-center justify-between p-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-xs">
                   <span className="text-[var(--subtext)] truncate mr-2">Attached: <strong className="text-[var(--text)]">{form.meetLink}</strong></span>

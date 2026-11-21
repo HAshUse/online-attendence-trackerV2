@@ -473,7 +473,7 @@ function CreateClass() {
               </div>
 
               <div className="bg-[var(--primary-light)] border border-indigo-500/25 text-[var(--primary)] text-xs p-2.5 sm:p-3.5 rounded-lg mb-1 leading-relaxed">
-                <span className="font-bold">📅 Google Calendar:</span> Meet link will be automatically created and attached to this session.
+                <span className="font-bold">📅 Google Calendar & Meet:</span> An open Google Meet link will be automatically generated and synced to your Google Calendar so you can join directly with one click.
               </div>
             </div>
           ) : (
