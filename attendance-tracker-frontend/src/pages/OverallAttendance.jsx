@@ -1,20 +1,64 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 function OverallAttendance() {
   const [data, setData] = useState([]);
   const [collegeWise, setCollegeWise] = useState({});
   const [selectedCollege, setSelectedCollege] = useState("");
+  const [availableMonths, setAvailableMonths] = useState([]);
+  const [branchName, setBranchName] = useState("");
 
   const { branchId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedMonth, setSelectedMonth] = useState(() => searchParams.get("month") || "");
 
-  /* ================= FETCH DATA ================= */
+  /* ================= FETCH BRANCH & AVAILABLE MONTHS ================= */
+  useEffect(() => {
+    const fetchMonthsAndBranch = async () => {
+      try {
+        const [branchRes, classesRes] = await Promise.all([
+          API.get(`/branches/${branchId}`).catch(() => ({ data: { name: "Branch" } })),
+          API.get(`/classes/my?branchId=${branchId}`).catch(() => ({ data: [] })),
+        ]);
 
+        if (branchRes.data?.name) {
+          setBranchName(branchRes.data.name);
+        }
+
+        const rawClasses = classesRes.data || [];
+        const monthMap = {};
+        rawClasses.forEach((cls) => {
+          const raw = cls.classDate || (cls.createdAt ? cls.createdAt.slice(0, 10) : "");
+          if (raw && raw.length >= 7) {
+            const key = raw.slice(0, 7); // "YYYY-MM"
+            if (!monthMap[key]) {
+              const [y, m] = key.split("-");
+              const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-IN", {
+                month: "long",
+                year: "numeric",
+              });
+              monthMap[key] = { key, label };
+            }
+          }
+        });
+
+        const sorted = Object.values(monthMap).sort((a, b) => b.key.localeCompare(a.key));
+        setAvailableMonths(sorted);
+      } catch (err) {
+        console.error("Error fetching branch months:", err);
+      }
+    };
+
+    if (branchId) fetchMonthsAndBranch();
+  }, [branchId]);
+
+  /* ================= FETCH DATA (WITH OPTIONAL MONTH) ================= */
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await API.get(`/attendance/overall/${branchId}`);
+        const query = selectedMonth ? `?month=${selectedMonth}` : "";
+        const res = await API.get(`/attendance/overall/${branchId}${query}`);
         setData(res.data);
 
         // GROUP BY COLLEGE
@@ -26,17 +70,24 @@ function OverallAttendance() {
         });
 
         setCollegeWise(map);
-
       } catch (err) {
         console.log(err);
       }
     };
 
     if (branchId) fetchData();
-  }, [branchId]);
+  }, [branchId, selectedMonth]);
+
+  const handleMonthChange = (newMonth) => {
+    setSelectedMonth(newMonth);
+    if (newMonth) {
+      setSearchParams({ month: newMonth });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   /* ================= DOWNLOAD HELPER ================= */
-
   const downloadFile = (blob, filename) => {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -47,42 +98,50 @@ function OverallAttendance() {
     link.remove();
   };
 
-  /* ================= EXPORT ALL ================= */
-
+  /* ================= EXPORT ALL (MONTH-AWARE) ================= */
   const exportExcel = async () => {
     try {
+      const query = selectedMonth ? `?month=${selectedMonth}` : "";
       const res = await API.get(
-        `/attendance/overall/export/${branchId}`,
+        `/attendance/overall/export/${branchId}${query}`,
         { responseType: "blob" }
       );
 
-      downloadFile(new Blob([res.data]), "overall_attendance.xlsx");
+      const monthLabel = availableMonths.find((m) => m.key === selectedMonth)?.label || selectedMonth;
+      const cleanMonth = monthLabel ? `_${monthLabel.replace(/\s+/g, "_")}` : "";
+      const filename = `${branchName || "branch"}${cleanMonth}_attendance.xlsx`;
 
+      downloadFile(new Blob([res.data]), filename);
     } catch {
-      alert("Failed to export");
+      alert("Failed to export attendance register");
     }
   };
 
-  /* ================= EXPORT COLLEGE ================= */
-
+  /* ================= EXPORT COLLEGE (MONTH-AWARE) ================= */
   const exportCollegeExcel = async () => {
     if (!selectedCollege) return;
 
     try {
+      const params = new URLSearchParams();
+      params.append("college", selectedCollege);
+      if (selectedMonth) params.append("month", selectedMonth);
+
       const res = await API.get(
-        `/attendance/overall/export/${branchId}?college=${encodeURIComponent(selectedCollege)}`,
+        `/attendance/overall/export/${branchId}?${params.toString()}`,
         { responseType: "blob" }
       );
 
-      downloadFile(new Blob([res.data]), `${selectedCollege}_attendance.xlsx`);
+      const monthLabel = availableMonths.find((m) => m.key === selectedMonth)?.label || selectedMonth;
+      const cleanMonth = monthLabel ? `_${monthLabel.replace(/\s+/g, "_")}` : "";
+      const filename = `${selectedCollege.replace(/\s+/g, "_")}${cleanMonth}_attendance.xlsx`;
 
+      downloadFile(new Blob([res.data]), filename);
     } catch {
       alert("Failed to export college data");
     }
   };
 
-  /* ================= EXPORT GOOGLE SHEET ================= */
-
+  /* ================= EXPORT GOOGLE SHEET (MONTH-AWARE) ================= */
   const [exportingSheet, setExportingSheet] = useState(false);
   const [createdSheetUrl, setCreatedSheetUrl] = useState(null);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
@@ -103,7 +162,10 @@ function OverallAttendance() {
 
     try {
       setExportingSheet(true);
-      const res = await API.post(`/attendance/export-google-sheet-overall/${branchId}`);
+      const res = await API.post(
+        `/attendance/export-google-sheet-overall/${branchId}`,
+        { month: selectedMonth || undefined }
+      );
       if (res.data?.sheetUrl) {
         setCreatedSheetUrl(res.data.sheetUrl);
         showToast("Google Sheet generated successfully!", "success", res.data.sheetUrl);
@@ -157,21 +219,44 @@ function OverallAttendance() {
   };
 
   /* ================= UI ================= */
-
   return (
     <div className="min-h-screen bg-[var(--bg)] px-4 py-7 sm:px-6 md:px-8 transition-colors duration-200">
-
-      <h2 className="mb-6 text-2xl font-bold text-[var(--text)] tracking-tight">
-        Overall Student Attendance
-      </h2>
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-[var(--text)] tracking-tight m-0">
+            {branchName ? `${branchName} — ` : ""}Overall Student Attendance
+          </h2>
+          <p className="text-xs sm:text-sm text-[var(--subtext)] mt-1">
+            {selectedMonth
+              ? `Showing attendance records for ${
+                  availableMonths.find((m) => m.key === selectedMonth)?.label || selectedMonth
+                }`
+              : "Showing attendance across all scheduled classes"}
+          </p>
+        </div>
+      </div>
 
       {/* ACTION BAR */}
       <div className="flex flex-wrap items-center gap-2.5 mb-6">
+        {/* Month Filter Dropdown */}
+        <select
+          value={selectedMonth}
+          onChange={(e) => handleMonthChange(e.target.value)}
+          className="min-w-[170px] h-10 px-3 py-1.5 rounded-lg border-[1.5px] border-[var(--border)] bg-[var(--card)] text-[var(--text)] text-sm outline-none cursor-pointer transition-all duration-200 focus:border-[var(--border-focus)] focus:ring-2 focus:ring-indigo-500/20"
+        >
+          <option value="">🗓️ All Months</option>
+          {availableMonths.map((m) => (
+            <option key={m.key} value={m.key}>
+              🗓️ {m.label}
+            </option>
+          ))}
+        </select>
+
         <button 
           className="px-4 py-2.5 rounded-lg bg-[var(--primary)] text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-[var(--primary-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 cursor-pointer inline-flex items-center gap-1.5" 
           onClick={exportExcel}
         >
-          📥 Export Excel
+          📥 {selectedMonth ? "Export Month Excel" : "Export Excel"}
         </button>
 
         <button
@@ -179,7 +264,11 @@ function OverallAttendance() {
           onClick={exportGoogleSheet}
           disabled={exportingSheet || data.length === 0}
         >
-          {exportingSheet ? "Creating Sheet..." : "📊 Export to Google Sheets"}
+          {exportingSheet
+            ? "Creating Sheet..."
+            : selectedMonth
+            ? "📊 Export Month Google Sheet"
+            : "📊 Export to Google Sheets"}
         </button>
 
         {createdSheetUrl && (
@@ -211,6 +300,15 @@ function OverallAttendance() {
         >
           Export College
         </button>
+
+        {selectedMonth && (
+          <button
+            onClick={() => handleMonthChange("")}
+            className="px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--subtext)] hover:text-[var(--danger)] text-xs font-semibold cursor-pointer transition-all inline-flex items-center gap-1"
+          >
+            ✕ Clear Month Filter
+          </button>
+        )}
       </div>
 
       {/* MAIN TABLE */}
