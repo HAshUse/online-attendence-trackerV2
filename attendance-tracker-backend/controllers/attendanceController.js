@@ -532,12 +532,20 @@ export const getOverallAttendanceSummary = async (req, res) => {
   try {
     const teacherId = req.user._id;
     const { branchId } = req.params;
+    const { month } = req.query; // YYYY-MM e.g. "2026-11"
 
     // Fix #8: Pre-filter by class IDs — avoids loading the entire Attendance collection
-    const branchClasses = await Class.find({
+    let branchClasses = await Class.find({
       teacher: teacherId,
       branch: branchId,
-    }).select("_id className");
+    }).select("_id className classDate createdAt");
+
+    if (month) {
+      branchClasses = branchClasses.filter((c) => {
+        const d = c.classDate || (c.createdAt ? c.createdAt.toISOString().slice(0, 10) : "");
+        return d.startsWith(month);
+      });
+    }
 
     const totalClasses = branchClasses.length;
     const classIds = branchClasses.map((c) => c._id);
@@ -656,21 +664,46 @@ export const getOverallAttendanceSummary = async (req, res) => {
 /* =====================================================
    HELPER: BUILD MATRIX REGISTER DATA FOR OVERALL BRANCH
 ===================================================== */
-const buildBranchMatrixRegister = async (teacherId, branchId, selectedCollege = null) => {
+const buildBranchMatrixRegister = async (
+  teacherId,
+  branchId,
+  selectedCollege = null,
+  selectedMonth = null
+) => {
   // 1. Fetch all classes in branch sorted chronologically
-  const branchClasses = await Class.find({
+  let branchClasses = await Class.find({
     teacher: teacherId,
     branch: branchId,
   })
     .sort({ createdAt: 1 })
-    .select("_id className createdAt");
+    .select("_id className classDate createdAt");
+
+  if (selectedMonth) {
+    branchClasses = branchClasses.filter((cls) => {
+      const d = cls.classDate || (cls.createdAt ? cls.createdAt.toISOString().slice(0, 10) : "");
+      return d.startsWith(selectedMonth);
+    });
+  }
 
   const totalClasses = branchClasses.length;
   const classIds = branchClasses.map((c) => c._id);
 
+  // If no classes found for the branch / month
+  if (totalClasses === 0) {
+    const emptyHeader = ["S.No", "Full Name", "Group", "College", "Total Present", "Total Absent", "Attendance %"];
+    return {
+      header: emptyHeader,
+      matrixRows: [emptyHeader],
+      totalClasses: 0,
+      studentCount: 0,
+    };
+  }
+
   // Column header titles for classes: "2026-09-11 (Class 1)"
   const classHeaders = branchClasses.map((cls, idx) => {
-    const dateStr = cls.createdAt
+    const dateStr = cls.classDate
+      ? cls.classDate
+      : cls.createdAt
       ? cls.createdAt.toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0];
     const className = cls.className || `Class ${idx + 1}`;
@@ -768,23 +801,39 @@ export const exportOverallAttendanceExcel = async (req, res) => {
     const teacherId = req.user._id;
     const { branchId } = req.params;
     const selectedCollege = req.query.college;
+    const selectedMonth = req.query.month; // e.g. "2026-11"
 
-    const { matrixRows } = await buildBranchMatrixRegister(
+    const branch = await Branch.findOne({ _id: branchId, teacher: teacherId });
+    const branchName = branch?.name || "branch";
+
+    const { matrixRows, totalClasses } = await buildBranchMatrixRegister(
       teacherId,
       branchId,
-      selectedCollege
+      selectedCollege,
+      selectedMonth
     );
+
+    if (totalClasses === 0) {
+      return res.status(404).json({ message: "No classes found for the selected period" });
+    }
 
     const worksheet = XLSX.utils.aoa_to_sheet(matrixRows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Register");
 
-    const fileName = selectedCollege
-      ? `${selectedCollege}_${branchId}_attendance.xlsx`
-      : `branch_${branchId}_attendance.xlsx`;
+    const parts = [branchName.replace(/\s+/g, "_")];
+    if (selectedCollege) parts.push(selectedCollege.replace(/\s+/g, "_"));
+    if (selectedMonth) parts.push(selectedMonth);
+    parts.push("attendance.xlsx");
+
+    const fileName = parts.join("_");
 
     XLSX.writeFile(workbook, fileName);
-    res.download(fileName, () => fs.unlinkSync(fileName));
+    res.download(fileName, () => {
+      try {
+        fs.unlinkSync(fileName);
+      } catch (e) {}
+    });
   } catch (error) {
     console.error("Excel overall export error:", error);
     res.status(500).json({ message: error.message });
@@ -798,6 +847,7 @@ export const exportOverallToGoogleSheet = async (req, res) => {
   try {
     const teacherId = req.user._id;
     const { branchId } = req.params;
+    const selectedMonth = req.body?.month || req.query?.month; // e.g. "2026-11"
 
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.googleAccessToken) {
@@ -811,10 +861,16 @@ export const exportOverallToGoogleSheet = async (req, res) => {
       return res.status(404).json({ message: "Branch not found" });
     }
 
-    const { matrixRows, studentCount } = await buildBranchMatrixRegister(
+    const { matrixRows, studentCount, totalClasses } = await buildBranchMatrixRegister(
       teacherId,
-      branchId
+      branchId,
+      null,
+      selectedMonth
     );
+
+    if (totalClasses === 0) {
+      return res.status(404).json({ message: "No classes found for the selected period" });
+    }
 
     if (studentCount === 0) {
       return res.status(404).json({ message: "No attendance records found for this branch" });
@@ -825,9 +881,19 @@ export const exportOverallToGoogleSheet = async (req, res) => {
       googleRefreshToken: teacher.googleRefreshToken,
     };
 
+    let title = branch.name;
+    if (selectedMonth) {
+      const [year, month] = selectedMonth.split("-");
+      const monthLabel = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("en-IN", {
+        month: "long",
+        year: "numeric",
+      });
+      title += ` (${monthLabel})`;
+    }
+
     const sheetResult = await exportOverallAttendanceToSheet(
       tokens,
-      branch.name,
+      title,
       matrixRows
     );
 
