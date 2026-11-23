@@ -11,24 +11,62 @@ function ClassAttendance() {
   const [collegeStudents, setCollegeStudents] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedCollege, setSelectedCollege] = useState("");
+  const [syncingMeet, setSyncingMeet] = useState(false);
+  const [recordingUrl, setRecordingUrl] = useState("");
+  const [classInfo, setClassInfo] = useState(null);
 
   /* ================= FETCH DATA ================= */
+
+  const handleSyncMeet = async (manual = true) => {
+    try {
+      setSyncingMeet(true);
+      const res = await API.get(`/attendance/sync-meet/${id}`);
+      if (res.data?.attendance) {
+        setAttendance(res.data.attendance);
+      }
+      if (res.data?.recordingUrl) {
+        setRecordingUrl(res.data.recordingUrl);
+      }
+      if (manual) {
+        showToast(res.data?.message || "Meet telemetry synced successfully!", "success");
+      }
+    } catch (err) {
+      console.warn("Meet telemetry sync error:", err);
+      if (manual) {
+        showToast(err.response?.data?.message || "Could not sync Google Meet data", "warning");
+      }
+    } finally {
+      setSyncingMeet(false);
+    }
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [attRes, sumRes] = await Promise.all([
+        const [attRes, sumRes, classRes] = await Promise.allSettled([
           API.get(`/attendance/class/${id}`),
-          API.get(`/attendance/summary/${id}`)
+          API.get(`/attendance/summary/${id}`),
+          API.get(`/classes/single/${id}`)
         ]);
 
-        setAttendance(attRes.data);
-        setSummary(sumRes.data);
+        if (attRes.status === "fulfilled") {
+          setAttendance(attRes.value.data);
+        }
+        if (sumRes.status === "fulfilled") {
+          setSummary(sumRes.value.data);
+        }
+        if (classRes.status === "fulfilled") {
+          setClassInfo(classRes.value.data);
+          if (classRes.value.data?.recordingUrl) {
+            setRecordingUrl(classRes.value.data.recordingUrl);
+          }
+        }
 
         // COLLEGE WISE MAP
+        const records = attRes.status === "fulfilled" ? attRes.value.data : [];
         const map = {};
 
-        attRes.data.forEach(record => {
+        records.forEach(record => {
           if (!record.student) return;
 
           const s = record.student;
@@ -54,6 +92,11 @@ function ClassAttendance() {
         });
 
         setCollegeStudents(formatted);
+
+        // Run background non-blocking telemetry sync if meet link exists
+        if (classRes.status === "fulfilled" && classRes.value.data?.meetLink?.includes("meet.google.com")) {
+          handleSyncMeet(false);
+        }
 
       } catch (err) {
         console.log(err);
@@ -212,6 +255,24 @@ function ClassAttendance() {
             {exportingSheet ? "Creating Sheet..." : "📊 Export to Google Sheets"}
           </button>
 
+          <button
+            className="px-4 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--primary)] text-[var(--text)] text-xs sm:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer"
+            onClick={() => handleSyncMeet(true)}
+            disabled={syncingMeet}
+            title="Fetch participant exit times & duration from Google Meet"
+          >
+            {syncingMeet ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div>
+                <span>Syncing Meet...</span>
+              </>
+            ) : (
+              <>
+                <span>🔄 Refresh Meet Data</span>
+              </>
+            )}
+          </button>
+
           {createdSheetUrl && (
             <a
               href={createdSheetUrl}
@@ -247,6 +308,30 @@ function ClassAttendance() {
         </div>
       </div>
 
+      {/* RECORDING BANNER */}
+      {recordingUrl && (
+        <div className="bg-gradient-to-r from-red-500/10 via-purple-500/10 to-indigo-500/10 border border-indigo-500/25 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 shadow-sm">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/20 flex items-center justify-center text-xl shrink-0">
+              🎥
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-[var(--text)] m-0">Meeting Recording Available</h4>
+              <p className="text-xs text-[var(--subtext)] m-0 mt-0.5">This session was automatically recorded and saved to Google Drive.</p>
+            </div>
+          </div>
+          <a
+            href={recordingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shadow-sm shrink-0 no-underline cursor-pointer"
+          >
+            <span>Watch on Drive</span>
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+      )}
+
       {/* NO DATA */}
       {attendance.length === 0 && (
         <div className="bg-[var(--card)] p-8 rounded-2xl border border-[var(--border)] shadow-sm mb-6 transition-colors duration-200 text-center">
@@ -258,36 +343,75 @@ function ClassAttendance() {
       {/* RAW RECORDS */}
       {attendance.length > 0 && (
         <div className="bg-[var(--card)] p-5 rounded-2xl border border-[var(--border)] shadow-sm mb-6 transition-colors duration-200 flex flex-col gap-3">
-          <h3 className="text-base sm:text-lg font-bold text-[var(--text)] flex items-center gap-2 before:content-[''] before:inline-block before:w-1 before:h-4.5 before:bg-gradient-to-b before:from-[var(--primary)] before:to-purple-400 before:rounded-full">
-            Attendance Records
-          </h3>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-base sm:text-lg font-bold text-[var(--text)] flex items-center gap-2 before:content-[''] before:inline-block before:w-1 before:h-4.5 before:bg-gradient-to-b before:from-[var(--primary)] before:to-purple-400 before:rounded-full">
+              Attendance Records ({attendance.length})
+            </h3>
+            <span className="text-xs text-[var(--subtext)]">
+              Exit telemetry synced via Google Meet
+            </span>
+          </div>
+
           <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
-            <table className="w-full min-w-[600px] border-collapse bg-[var(--card)] text-left">
+            <table className="w-full min-w-[750px] border-collapse bg-[var(--card)] text-left">
               <thead>
                 <tr>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">#</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Name</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Email</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Group</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">College</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Date</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-4 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Time</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">#</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Name</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Email</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Group</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">College</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Joined</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Left Call</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Duration</th>
+                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {attendance.map((record, i) => {
                   if (!record.student) return null;
-                  const d = new Date(record.createdAt);
+                  const joinDate = new Date(record.createdAt);
 
                   return (
                     <tr key={record._id} className="hover:bg-[var(--bg-secondary)] transition-colors duration-150">
-                      <td className="px-4 py-3 text-sm text-[var(--text)]">{i + 1}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-[var(--text)]">{record.student.fullName}</td>
-                      <td className="px-4 py-3 text-sm text-[var(--subtext)]">{record.student.email}</td>
-                      <td className="px-4 py-3 text-sm text-[var(--text)]">{record.student.group}</td>
-                      <td className="px-4 py-3 text-sm text-[var(--text)]">{record.student.college}</td>
-                      <td className="px-4 py-3 text-sm text-[var(--subtext)]">{d.toLocaleDateString()}</td>
-                      <td className="px-4 py-3 text-sm text-[var(--subtext)]">{d.toLocaleTimeString()}</td>
+                      <td className="px-3 py-3 text-xs sm:text-sm text-[var(--text)]">{i + 1}</td>
+                      <td className="px-3 py-3 text-xs sm:text-sm font-semibold text-[var(--text)]">{record.student.fullName}</td>
+                      <td className="px-3 py-3 text-xs text-[var(--subtext)]">{record.student.email}</td>
+                      <td className="px-3 py-3 text-xs sm:text-sm text-[var(--text)]">{record.student.group}</td>
+                      <td className="px-3 py-3 text-xs sm:text-sm text-[var(--text)]">{record.student.college}</td>
+                      <td className="px-3 py-3 text-xs text-[var(--subtext)]">
+                        {joinDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-[var(--subtext)]">
+                        {record.leftAt
+                          ? new Date(record.leftAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-xs font-medium text-[var(--text)]">
+                        {record.durationMins > 0 ? `${record.durationMins}m` : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-xs">
+                        {record.exitStatus === "completed" && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Full
+                          </span>
+                        )}
+                        {record.exitStatus === "active" && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/15 text-blue-500 border border-blue-500/20 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> In Call
+                          </span>
+                        )}
+                        {record.exitStatus === "left_early" && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Left Early
+                          </span>
+                        )}
+                        {(!record.exitStatus || record.exitStatus === "unknown") && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--bg-secondary)] text-[var(--subtext)] border border-[var(--border)]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> Attended
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

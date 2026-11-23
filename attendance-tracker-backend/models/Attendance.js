@@ -11,6 +11,30 @@ const attendanceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Class",
       required: true
+    },
+    leftAt: {
+      type: Date,
+      default: null
+    },
+    durationMins: {
+      type: Number,
+      default: 0
+    },
+    exitStatus: {
+      type: String,
+      enum: ["active", "completed", "left_early", "unknown"],
+      default: "unknown"
+    },
+    meetSessions: [
+      {
+        joinedAt: { type: Date },
+        leftAt: { type: Date },
+        durationSeconds: { type: Number, default: 0 }
+      }
+    ],
+    lastSyncedAt: {
+      type: Date,
+      default: null
     }
     // Note: `date` removed — use `createdAt` from timestamps instead
   },

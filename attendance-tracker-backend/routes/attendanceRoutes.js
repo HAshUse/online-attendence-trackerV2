@@ -10,6 +10,7 @@ import {
   exportOverallAttendanceExcel,
   getCollegeGroupWiseAttendance,
   getOverallAttendanceSummary,
+  syncClassMeetTelemetry,
 } from "../controllers/attendanceController.js";
 import protect from "../middleware/authMiddleware.js";
 
@@ -17,6 +18,7 @@ const router = express.Router();
 
 router.post("/mark", markAttendance);
 router.get("/class/:classId", protect, getClassAttendance);
+router.get("/sync-meet/:classId", protect, syncClassMeetTelemetry);
 router.get("/export/:classId", protect, exportAttendance);
 router.post("/export-google-sheet/:classId", protect, exportClassToGoogleSheet);
 router.post("/export-google-sheet-overall/:branchId", protect, exportOverallToGoogleSheet);

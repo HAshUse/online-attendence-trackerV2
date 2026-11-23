@@ -10,6 +10,12 @@ import {
   exportOverallAttendanceToSheet,
   getSheetUrl,
 } from "../services/googleSheets.js";
+import {
+  fetchConferenceRecordsForMeeting,
+  fetchAllParticipantSessions,
+  fetchMeetingRecordings,
+  matchParticipantsToAttendance,
+} from "../services/googleMeetTelemetry.js";
 import XLSX from "xlsx";
 import fs from "fs";
 
@@ -189,7 +195,10 @@ export const exportAttendance = async (req, res) => {
       Group: record.student.group,
       College: record.student.college,
       Date: record.createdAt.toLocaleDateString(),
-      Time: record.createdAt.toLocaleTimeString()
+      Time: record.createdAt.toLocaleTimeString(),
+      LeftCallAt: record.leftAt ? new Date(record.leftAt).toLocaleTimeString() : "-",
+      DurationMins: record.durationMins || 0,
+      ExitStatus: record.exitStatus || "unknown"
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -204,6 +213,112 @@ export const exportAttendance = async (req, res) => {
     res.download(filePath, () => fs.unlinkSync(filePath));
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+/* =====================================================
+   SYNC CLASS MEET TELEMETRY (EXIT TRACKING & RECORDING)
+===================================================== */
+export const syncClassMeetTelemetry = async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    const classDoc = await Class.findOne({
+      _id: classId,
+      teacher: req.user._id,
+    });
+
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found or unauthorized" });
+    }
+
+    const teacher = await Teacher.findById(req.user._id);
+    if (!teacher || !teacher.googleAccessToken) {
+      return res.status(400).json({
+        message: "Google account not connected. Please connect your Google account to fetch Meet telemetry.",
+      });
+    }
+
+    if (!classDoc.meetLink || !classDoc.meetLink.includes("meet.google.com")) {
+      return res.status(200).json({
+        message: "Class does not have an active Google Meet link",
+        syncedCount: 0,
+        recordingUrl: classDoc.recordingUrl || "",
+        attendance: await Attendance.find({ class: classId }).populate("student", "fullName email group college").sort({ createdAt: -1 })
+      });
+    }
+
+    // 1. Fetch conference records for this class
+    const conferenceRecords = await fetchConferenceRecordsForMeeting(teacher, classDoc.meetLink);
+    if (!conferenceRecords || conferenceRecords.length === 0) {
+      const existingAtt = await Attendance.find({ class: classId })
+        .populate("student", "fullName email group college")
+        .sort({ createdAt: -1 });
+
+      return res.status(200).json({
+        message: "No Google Meet conference records found yet. Ensure the meeting has started.",
+        syncedCount: 0,
+        recordingUrl: classDoc.recordingUrl || "",
+        attendance: existingAtt
+      });
+    }
+
+    // Use latest conference record
+    const latestRecord = conferenceRecords[0];
+
+    // 2. Fetch all participants and individual sessions
+    const meetParticipants = await fetchAllParticipantSessions(teacher, latestRecord.name);
+
+    // 3. Fetch recordings if any
+    try {
+      const recordingInfo = await fetchMeetingRecordings(teacher, latestRecord.name);
+      if (recordingInfo?.recordingUrl && recordingInfo.recordingUrl !== classDoc.recordingUrl) {
+        classDoc.recordingUrl = recordingInfo.recordingUrl;
+        classDoc.recordingFileId = recordingInfo.recordingFileId || "";
+        await classDoc.save();
+      }
+    } catch (recErr) {
+      console.warn("Error fetching recording info:", recErr.message);
+    }
+
+    // 4. Fetch local attendance records
+    const attendanceRecords = await Attendance.find({ class: classId }).populate(
+      "student",
+      "fullName email group college"
+    );
+
+    // 5. Match participants
+    const updates = matchParticipantsToAttendance(
+      attendanceRecords,
+      meetParticipants,
+      classDoc.expiresAt || latestRecord.endTime
+    );
+
+    // 6. Save updates to MongoDB
+    for (const u of updates) {
+      await Attendance.findByIdAndUpdate(u.attendanceId, {
+        leftAt: u.leftAt,
+        durationMins: u.durationMins,
+        exitStatus: u.exitStatus,
+        meetSessions: u.meetSessions,
+        lastSyncedAt: u.lastSyncedAt,
+      });
+    }
+
+    // 7. Return refreshed attendance
+    const refreshedAttendance = await Attendance.find({ class: classId })
+      .populate("student", "fullName email group college")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      message: `Successfully synced ${updates.length} participants with Meet telemetry`,
+      syncedCount: updates.length,
+      recordingUrl: classDoc.recordingUrl || "",
+      attendance: refreshedAttendance,
+    });
+  } catch (error) {
+    return handleGoogleApiError(error, req.user._id, res, "Google Meet telemetry sync failed");
   }
 };
 

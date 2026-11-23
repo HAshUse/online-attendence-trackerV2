@@ -115,6 +115,10 @@ function EditClass() {
   const [branches, setBranches] = useState([]);
   const [copiedLink, setCopiedLink] = useState(false);
   const [meetMode, setMeetMode] = useState("custom"); // "auto" | "custom"
+  const [autoRecord, setAutoRecord] = useState(false);
+  const [invitedGuests, setInvitedGuests] = useState([]);
+  const [guestInput, setGuestInput] = useState("");
+  const [guestRole, setGuestRole] = useState("GUEST");
 
   const [form, setForm] = useState({
     className: "",
@@ -127,6 +131,25 @@ function EditClass() {
     accessType: "open",
     classCode: "",
   });
+
+  const handleAddGuest = (e) => {
+    if (e) e.preventDefault();
+    const email = guestInput.trim().toLowerCase();
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      alert("Please enter a valid email address");
+      return;
+    }
+    if (invitedGuests.some((g) => g.email === email)) {
+      alert("This guest is already added");
+      return;
+    }
+    setInvitedGuests([...invitedGuests, { email, role: guestRole }]);
+    setGuestInput("");
+  };
+
+  const handleRemoveGuest = (emailToRemove) => {
+    setInvitedGuests(invitedGuests.filter((g) => g.email !== emailToRemove));
+  };
 
   /* ================= LOAD INITIAL DATA ================= */
   useEffect(() => {
@@ -171,6 +194,9 @@ function EditClass() {
           accessType: cls.accessType || "open",
           classCode: cls.classCode || "",
         });
+
+        setAutoRecord(Boolean(cls.autoRecord));
+        setInvitedGuests(Array.isArray(cls.invitedGuests) ? cls.invitedGuests : []);
 
         if (cls.meetLink) {
           setMeetMode("custom");
@@ -309,6 +335,8 @@ function EditClass() {
       setRegenerating(true);
       const res = await API.put(`/classes/update/${id}`, {
         ...form,
+        autoRecord,
+        invitedGuests,
         regenerateMeet: true
       });
 
@@ -343,7 +371,11 @@ function EditClass() {
     setSubmitting(true);
 
     try {
-      await API.put(`/classes/update/${id}`, form);
+      await API.put(`/classes/update/${id}`, {
+        ...form,
+        autoRecord,
+        invitedGuests
+      });
       alert("✅ Class updated successfully!");
       navigate(form.branchId ? `/dashboard/${form.branchId}` : "/branches");
     } catch (err) {
@@ -685,6 +717,113 @@ function EditClass() {
               </p>
             </div>
           )}
+
+          {/* AUTO-RECORD (Workspace Pro) */}
+          {meetMode === "auto" && (
+            <div className="mb-4.5 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] hover:bg-[var(--card-hover)] transition-all">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={autoRecord}
+                  onChange={(e) => setAutoRecord(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-[var(--primary)] rounded cursor-pointer"
+                />
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12.5px] font-bold text-[var(--text)]">🎥 Auto-record Meeting</span>
+                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/20">
+                      Workspace Pro
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-[var(--subtext)] leading-snug">
+                    Recording starts automatically and the Drive link will be saved once the meeting concludes.
+                  </span>
+                </div>
+              </label>
+            </div>
+          )}
+
+          {/* GUEST INVITATIONS (Calendar Invites & Co-hosts) */}
+          <div className="mb-4.5 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[12.5px] font-bold text-[var(--text)] tracking-wide flex items-center gap-1.5">
+                <span>👥 Invite People</span>
+                <span className="text-[11px] font-normal text-[var(--subtext)]">(Optional)</span>
+              </label>
+              {invitedGuests.length > 0 && (
+                <span className="text-[11px] font-semibold text-[var(--primary)]">
+                  {invitedGuests.length} invited
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="email"
+                placeholder="guest@example.com"
+                value={guestInput}
+                onChange={(e) => setGuestInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddGuest();
+                  }
+                }}
+                className="flex-1 py-2 px-3 border-[1.5px] border-[var(--border)] rounded-lg text-[13px] bg-[var(--bg)] text-[var(--text)] outline-none transition-all placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)]"
+              />
+
+              <select
+                value={guestRole}
+                onChange={(e) => setGuestRole(e.target.value)}
+                className="py-2 px-2.5 border-[1.5px] border-[var(--border)] rounded-lg text-[12px] font-semibold bg-[var(--bg)] text-[var(--text)] outline-none cursor-pointer focus:border-[var(--border-focus)]"
+              >
+                <option value="GUEST">Guest</option>
+                <option value="COHOST">Co-host</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={handleAddGuest}
+                className="py-2 px-3.5 bg-[var(--bg-secondary)] hover:bg-[var(--primary)] hover:text-white border border-[var(--border)] text-[var(--text)] rounded-lg text-xs font-bold transition-all cursor-pointer"
+              >
+                + Add
+              </button>
+            </div>
+
+            {/* Guest Chips */}
+            {invitedGuests.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {invitedGuests.map((g) => (
+                  <div
+                    key={g.email}
+                    className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text)]"
+                  >
+                    <span className="font-medium">{g.email}</span>
+                    <span
+                      className={`text-[9px] uppercase font-bold px-1 rounded ${
+                        g.role === "COHOST"
+                          ? "bg-purple-500/15 text-purple-400 border border-purple-500/20"
+                          : "bg-blue-500/15 text-blue-400 border border-blue-500/20"
+                      }`}
+                    >
+                      {g.role}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveGuest(g.email)}
+                      className="ml-0.5 text-[var(--subtext)] hover:text-red-400 font-bold transition-colors cursor-pointer"
+                      title="Remove guest"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[11px] text-[var(--subtext)] m-0 leading-tight">
+              Guests will receive a calendar invitation with the meeting link directly in their inbox.
+            </p>
+          </div>
 
           {/* BUTTONS */}
           <div className="flex flex-col-reverse sm:flex-row gap-3 mt-4">
