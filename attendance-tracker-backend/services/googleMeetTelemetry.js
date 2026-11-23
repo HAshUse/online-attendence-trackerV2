@@ -32,50 +32,40 @@ export const getMeetClient = (teacher) => {
 
 /**
  * Fetch conference records associated with a meeting space.
- * Resolves the actual Google Meet space resource name (e.g., spaces/-EEN_gnnwGAB)
- * from the friendly meeting code (e.g., sat-fojq-pyt) before querying.
+ * Inspects recent conference records and matches against the meeting code.
  */
 export const fetchConferenceRecordsForMeeting = async (teacher, meetLink) => {
   const code = extractMeetingCode(meetLink);
   if (!code) return [];
 
   const meet = getMeetClient(teacher);
-  let spaceResourceName = `spaces/${code}`;
-
-  // 1. Resolve actual space resource name
-  try {
-    const spaceRes = await meet.spaces.get({ name: `spaces/${code}` });
-    if (spaceRes.data?.name) {
-      spaceResourceName = spaceRes.data.name;
-    }
-  } catch (err) {
-    console.warn("Could not resolve space resource name from code:", err.message);
-  }
-
   let records = [];
 
-  // 2. Query conference records using resolved space resource name
   try {
-    const res = await meet.conferenceRecords.list({
-      filter: `space.name = "${spaceResourceName}"`,
-    });
-    records = res.data?.conferenceRecords || [];
-  } catch (err) {
-    console.warn("Space resource name filter failed, trying code fallback:", err.message);
-  }
+    const res = await meet.conferenceRecords.list({ pageSize: 50 });
+    const allRecords = res.data?.conferenceRecords || [];
+    const spaceCache = new Map();
 
-  // 3. Fallback: List recent conference records and match space resource
-  if (!records || records.length === 0) {
-    try {
-      const res = await meet.conferenceRecords.list({ pageSize: 50 });
-      const allRecords = res.data?.conferenceRecords || [];
-      records = allRecords.filter((r) => {
-        const spaceStr = (r.space || "").toLowerCase();
-        return spaceStr === spaceResourceName.toLowerCase() || spaceStr.includes(code);
-      });
-    } catch (err) {
-      console.warn("List all conference records fallback failed:", err.message);
+    for (const r of allRecords) {
+      if (!r.space) continue;
+      let spaceCode = spaceCache.get(r.space);
+
+      if (spaceCode === undefined) {
+        try {
+          const s = await meet.spaces.get({ name: r.space });
+          spaceCode = (s.data?.meetingCode || "").toLowerCase().trim();
+          spaceCache.set(r.space, spaceCode);
+        } catch {
+          spaceCache.set(r.space, "");
+        }
+      }
+
+      if (spaceCode && spaceCode === code) {
+        records.push(r);
+      }
     }
+  } catch (err) {
+    console.warn("Conference records lookup error:", err.message);
   }
 
   // Sort latest first
