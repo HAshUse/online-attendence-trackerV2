@@ -129,40 +129,44 @@ Respond with STRICT JSON only matching this schema:
   ]
 }`;
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          response_mime_type: "application/json",
-          temperature: 0.2,
-        },
-      }),
-    });
+  // Resilient model cascade: try fast active models first
+  const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-2.5-flash"];
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.warn("Gemini API error, falling back to rule engine:", errText);
-      return ruleBasedClean(records, requirements);
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            response_mime_type: "application/json",
+            temperature: 0.2,
+          },
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) continue;
+
+      const parsed = JSON.parse(rawText);
+      return {
+        summary: parsed.summary || "Attendance records successfully cleaned and formatted.",
+        records: parsed.records || [],
+        engine: `Gemini AI (${model})`,
+      };
+    } catch (err) {
+      // try next candidate model
     }
-
-    const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) {
-      return ruleBasedClean(records, requirements);
-    }
-
-    const parsed = JSON.parse(rawText);
-    return {
-      summary: parsed.summary || "Attendance records successfully cleaned and formatted.",
-      records: parsed.records || [],
-      engine: "Gemini 2.5 Flash",
-    };
-  } catch (err) {
-    console.warn("LLM cleaner failed, using rule-based fallback:", err.message);
-    return ruleBasedClean(records, requirements);
   }
+
+  // Graceful rule-based fallback if all models or network fail
+  return ruleBasedClean(records, requirements);
 };
