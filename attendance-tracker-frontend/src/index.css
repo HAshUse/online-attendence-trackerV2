@@ -1,82 +1,104 @@
 @import "tailwindcss";
 
 @layer base {
-  /* ---- Light Tokens (Default) ---- */
+  /* ---- Light Tokens (Linear/Vercel inspired Clean Aesthetic) ---- */
   :root {
     color-scheme: light;
     --primary: #6366f1;
     --primary-hover: #4f46e5;
-    --primary-light: rgba(99, 102, 241, 0.12);
+    --primary-light: rgba(99, 102, 241, 0.08);
+    --primary-ring: rgba(99, 102, 241, 0.25);
+
     --success: #10b981;
     --success-hover: #059669;
+    --success-light: rgba(16, 185, 129, 0.1);
+    
     --danger: #ef4444;
     --danger-hover: #dc2626;
-    --danger-light: #fef2f2;
-    --warning: #f59e0b;
+    --danger-light: rgba(239, 68, 68, 0.08);
 
-    /* Backgrounds */
-    --bg: #f1f5f9;
-    --bg-secondary: #e8edf5;
+    --warning: #f59e0b;
+    --warning-light: rgba(245, 158, 11, 0.1);
+
+    /* Clean subtle layered backgrounds */
+    --bg: #f8fafc;
+    --bg-secondary: #f1f5f9;
+    --bg-elevated: #ffffff;
     --card: #ffffff;
-    --card-hover: #f8fafc;
+    --card-hover: #fcfdfe;
+    --card-active: #f8fafc;
     --navbar-bg: rgba(255, 255, 255, 0.85);
 
-    /* Text */
-    --text: #0f172a;
-    --subtext: #64748b;
+    /* Text Hierarchy */
+    --text: #090d16;
+    --text-heading: #020617;
+    --subtext: #475569;
     --text-muted: #94a3b8;
 
-    /* Borders */
+    /* Refined borders */
     --border: #e2e8f0;
+    --border-subtle: #edf2f7;
     --border-focus: #6366f1;
 
-    /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.1);
-    --shadow-navbar: 0 1px 0 var(--border), 0 4px 20px rgba(0, 0, 0, 0.04);
+    /* Elevation & Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.08), 0 4px 10px -4px rgba(0, 0, 0, 0.04);
+    --shadow-navbar: 0 1px 0 rgba(226, 232, 240, 0.8), 0 4px 20px rgba(0, 0, 0, 0.03);
 
-    /* Radii */
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 20px;
     --radius-full: 9999px;
 
-    /* Transitions */
-    --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition: 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  /* ---- Dark Tokens ---- */
+  /* ---- Dark Tokens (High-End Midnight Obsidian & Glassmorphism) ---- */
   [data-theme="dark"] {
     color-scheme: dark;
     --primary: #818cf8;
     --primary-hover: #6366f1;
-    --primary-light: rgba(129, 140, 248, 0.15);
+    --primary-light: rgba(129, 140, 248, 0.14);
+    --primary-ring: rgba(129, 140, 248, 0.35);
+
     --success: #34d399;
     --success-hover: #10b981;
+    --success-light: rgba(52, 211, 153, 0.12);
+
     --danger: #f87171;
     --danger-hover: #ef4444;
-    --danger-light: rgba(248, 113, 113, 0.1);
+    --danger-light: rgba(248, 113, 113, 0.12);
+
     --warning: #fbbf24;
+    --warning-light: rgba(251, 191, 36, 0.12);
 
-    --bg: #0f172a;
-    --bg-secondary: #1e293b;
-    --card: #1e293b;
-    --card-hover: #263348;
-    --navbar-bg: rgba(15, 23, 42, 0.9);
+    /* Deep layered Obsidian & Slate backgrounds */
+    --bg: #090d16;
+    --bg-secondary: #0f172a;
+    --bg-elevated: #162032;
+    --card: #0f172a;
+    --card-hover: #141e33;
+    --card-active: #192640;
+    --navbar-bg: rgba(9, 13, 22, 0.85);
 
-    --text: #f1f5f9;
+    /* Crisp High-Contrast Typography */
+    --text: #f8fafc;
+    --text-heading: #ffffff;
     --subtext: #94a3b8;
     --text-muted: #64748b;
 
-    --border: #334155;
+    /* Subtle hairline borders */
+    --border: rgba(255, 255, 255, 0.08);
+    --border-subtle: rgba(255, 255, 255, 0.04);
     --border-focus: #818cf8;
 
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
-    --shadow-navbar: 0 1px 0 var(--border), 0 4px 20px rgba(0, 0, 0, 0.3);
+    /* Deep ambient glow & shadows */
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.6);
+    --shadow-md: 0 4px 14px 0 rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+    --shadow-lg: 0 12px 36px 0 rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.07);
+    --shadow-navbar: 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 24px rgba(0, 0, 0, 0.6);
   }
 
   *,
@@ -87,26 +109,54 @@
 
   html {
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    font-family: "Inter", system-ui, -apple-system, Arial, sans-serif;
-    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", system-ui, sans-serif;
+    background-color: var(--bg);
     color: var(--text);
-    line-height: 1.6;
-    transition: background var(--transition), color var(--transition);
+    line-height: 1.5;
+    transition: background-color var(--transition), color var(--transition);
     min-height: 100vh;
+  }
+
+  /* Focus ring outline reset */
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
   }
 }
 
-/* Custom Scrollbar */
+/* Glassmorphism utility helpers */
+.glass-panel {
+  background: var(--navbar-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+}
+
+.glass-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+}
+
+.glass-card:hover {
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-md);
+}
+
+/* Premium scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -118,10 +168,11 @@
   background: var(--subtext);
 }
 
+/* Fluid Animations */
 @keyframes dropdownIn {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.97);
+    transform: translateY(-6px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -143,7 +194,7 @@
 @keyframes fadeSlideUp {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -151,31 +202,11 @@
   }
 }
 
-@keyframes fadeSlideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes orbFloat {
-  0%, 100% {
-    transform: translateY(0px) scale(1);
-  }
-  50% {
-    transform: translateY(-20px) scale(1.04);
-  }
-}
-
-@keyframes pulseBadge {
+@keyframes subtlePulse {
   0%, 100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.75;
+    opacity: 0.7;
   }
 }

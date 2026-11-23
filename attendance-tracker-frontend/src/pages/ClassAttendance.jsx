@@ -485,16 +485,16 @@ function ClassAttendance() {
           <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
             <table className="w-full min-w-[750px] border-collapse bg-[var(--card)] text-left">
               <thead>
-                <tr>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">#</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Name</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Email</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Group</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">College</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Joined</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Left Call</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Duration</th>
-                  <th className="bg-[var(--primary-light)] text-[var(--primary)] px-3 py-3 text-xs font-bold uppercase tracking-wider border-b border-[var(--border)] text-left">Status</th>
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-secondary)]/60">
+                  <th className="text-[var(--text-heading)] px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-left">#</th>
+                  <th className="text-[var(--text-heading)] px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-left">Name</th>
+                  <th className="text-[var(--text-heading)] px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-left">Email</th>
+                  <th className="text-[var(--text-heading)] px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-left">Group</th>
+                  <th className="text-[var(--text-heading)] px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-left">College</th>
+                  <th className="text-[var(--text-heading)] px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-left">Joined</th>
+                  <th className="text-[var(--text-heading)] px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-left">Left Call</th>
+                  <th className="text-[var(--text-heading)] px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-left">Duration</th>
+                  <th className="text-[var(--text-heading)] px-3.5 py-3 text-xs font-bold uppercase tracking-wider text-left">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -503,42 +503,42 @@ function ClassAttendance() {
                   const joinDate = record.joinedAt ? new Date(record.joinedAt) : new Date(record.createdAt);
 
                   return (
-                    <tr key={record._id} className="hover:bg-[var(--bg-secondary)] transition-colors duration-150">
-                      <td className="px-3 py-3 text-xs sm:text-sm text-[var(--text)]">{i + 1}</td>
-                      <td className="px-3 py-3 text-xs sm:text-sm font-semibold text-[var(--text)]">{record.student.fullName}</td>
-                      <td className="px-3 py-3 text-xs text-[var(--subtext)]">{record.student.email}</td>
-                      <td className="px-3 py-3 text-xs sm:text-sm text-[var(--text)]">{record.student.group}</td>
-                      <td className="px-3 py-3 text-xs sm:text-sm text-[var(--text)]">{record.student.college}</td>
-                      <td className="px-3 py-3 text-xs text-[var(--subtext)]">
+                    <tr key={record._id} className="hover:bg-[var(--card-hover)] transition-colors duration-150">
+                      <td className="px-3.5 py-3 text-xs sm:text-sm text-[var(--subtext)]">{i + 1}</td>
+                      <td className="px-3.5 py-3 text-xs sm:text-sm font-semibold text-[var(--text)]">{record.student.fullName}</td>
+                      <td className="px-3.5 py-3 text-xs text-[var(--subtext)]">{record.student.email}</td>
+                      <td className="px-3.5 py-3 text-xs sm:text-sm text-[var(--text)]">{record.student.group}</td>
+                      <td className="px-3.5 py-3 text-xs sm:text-sm text-[var(--text)]">{record.student.college}</td>
+                      <td className="px-3.5 py-3 text-xs text-[var(--subtext)]">
                         {joinDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="px-3 py-3 text-xs text-[var(--subtext)]">
+                      <td className="px-3.5 py-3 text-xs text-[var(--subtext)]">
                         {record.leftAt
                           ? new Date(record.leftAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : "-"}
                       </td>
-                      <td className="px-3 py-3 text-xs font-medium text-[var(--text)]">
+                      <td className="px-3.5 py-3 text-xs font-semibold text-[var(--text)]">
                         {record.durationMins > 0 ? `${record.durationMins}m` : "-"}
                       </td>
-                      <td className="px-3 py-3 text-xs">
+                      <td className="px-3.5 py-3 text-xs">
                         {record.exitStatus === "completed" && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Full
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Full
                           </span>
                         )}
                         {record.exitStatus === "active" && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/15 text-blue-500 border border-blue-500/20 animate-pulse">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> In Call
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/25 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span> In Call
                           </span>
                         )}
                         {record.exitStatus === "left_early" && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Left Early
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/25">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Left Early
                           </span>
                         )}
                         {(!record.exitStatus || record.exitStatus === "unknown") && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--bg-secondary)] text-[var(--subtext)] border border-[var(--border)]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> Attended
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[var(--bg-secondary)] text-[var(--subtext)] border border-[var(--border)]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--subtext)]"></span> Attended
                           </span>
                         )}
                       </td>
