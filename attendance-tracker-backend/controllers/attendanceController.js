@@ -6,6 +6,8 @@ import Branch from "../models/Branch.js";
 import Teacher from "../models/Teacher.js";
 import {
   markStudentPresent,
+  createBranchSheet,
+  syncBranchRecordingsSheet,
   exportClassAttendanceToSheet,
   exportOverallAttendanceToSheet,
   getSheetUrl,
@@ -13,9 +15,12 @@ import {
 import {
   fetchConferenceRecordsForMeeting,
   fetchAllParticipantSessions,
+  aggregateParticipantsFromRecords,
   fetchMeetingRecordings,
   matchParticipantsToAttendance,
 } from "../services/googleMeetTelemetry.js";
+import { cleanAttendanceWithLLM } from "../services/llmAttendanceCleaner.js";
+import { sendStakeholderExcelEmail } from "../services/mailer.js";
 import XLSX from "xlsx";
 import fs from "fs";
 
@@ -263,22 +268,39 @@ export const syncClassMeetTelemetry = async (req, res) => {
       });
     }
 
-    // Use latest conference record
-    const latestRecord = conferenceRecords[0];
-
-    // 2. Fetch all participants and individual sessions
-    const meetParticipants = await fetchAllParticipantSessions(teacher, latestRecord.name);
+    // 2. Fetch all participants and individual sessions across all conference records for this space
+    const meetParticipants = await aggregateParticipantsFromRecords(teacher, conferenceRecords);
 
     // 3. Fetch recordings if any
-    try {
-      const recordingInfo = await fetchMeetingRecordings(teacher, latestRecord.name);
-      if (recordingInfo?.recordingUrl && recordingInfo.recordingUrl !== classDoc.recordingUrl) {
-        classDoc.recordingUrl = recordingInfo.recordingUrl;
-        classDoc.recordingFileId = recordingInfo.recordingFileId || "";
-        await classDoc.save();
+    for (const rec of conferenceRecords) {
+      try {
+        const recordingInfo = await fetchMeetingRecordings(teacher, rec.name);
+        if (recordingInfo?.recordingUrl && recordingInfo.recordingUrl !== classDoc.recordingUrl) {
+          classDoc.recordingUrl = recordingInfo.recordingUrl;
+          classDoc.recordingFileId = recordingInfo.recordingFileId || "";
+          await classDoc.save();
+
+          // Auto-sync this recording link into the branch's single Google Sheet
+          try {
+            const branch = await Branch.findById(classDoc.branch);
+            if (branch?.sheetId && teacher?.googleAccessToken) {
+              await syncBranchRecordingsSheet(
+                {
+                  access_token: teacher.googleAccessToken,
+                  refresh_token: teacher.googleRefreshToken,
+                },
+                branch.sheetId,
+                classDoc
+              );
+            }
+          } catch (sheetSyncErr) {
+            console.warn("Could not sync recording link to branch sheet:", sheetSyncErr.message);
+          }
+          break;
+        }
+      } catch (recErr) {
+        console.warn("Error fetching recording info:", recErr.message);
       }
-    } catch (recErr) {
-      console.warn("Error fetching recording info:", recErr.message);
     }
 
     // 4. Fetch local attendance records
@@ -291,12 +313,13 @@ export const syncClassMeetTelemetry = async (req, res) => {
     const updates = matchParticipantsToAttendance(
       attendanceRecords,
       meetParticipants,
-      classDoc.expiresAt || latestRecord.endTime
+      classDoc.expiresAt || conferenceRecords[0]?.endTime
     );
 
     // 6. Save updates to MongoDB
     for (const u of updates) {
       await Attendance.findByIdAndUpdate(u.attendanceId, {
+        joinedAt: u.joinedAt || undefined,
         leftAt: u.leftAt,
         durationMins: u.durationMins,
         exitStatus: u.exitStatus,
@@ -1020,4 +1043,248 @@ export const exportOverallToGoogleSheet = async (req, res) => {
     return handleGoogleApiError(error, teacherId, res, "Failed to export to Google Sheets");
   }
 };
+
+/* =====================================================
+   SYNC ALL BRANCH RECORDINGS TO SINGLE GOOGLE SHEET
+===================================================== */
+export const syncBranchRecordingsToGoogleSheet = async (req, res) => {
+  try {
+    const teacherId = req.user._id;
+    const { branchId } = req.params;
+
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.googleAccessToken) {
+      return res.status(400).json({
+        message: "Please connect your Google Account first to sync with Google Sheets.",
+      });
+    }
+
+    const branch = await Branch.findOne({ _id: branchId, teacher: teacherId });
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
+
+    const tokens = {
+      googleAccessToken: teacher.googleAccessToken,
+      googleRefreshToken: teacher.googleRefreshToken,
+    };
+
+    // If branch doesn't have a master Google Sheet yet, create one
+    if (!branch.sheetId) {
+      const newSheetId = await createBranchSheet(tokens, branch.name);
+      branch.sheetId = newSheetId;
+      await branch.save();
+    }
+
+    // Fetch all classes for this branch
+    const classes = await Class.find({ branch: branchId }).sort({ createdAt: 1 });
+
+    const result = await syncBranchRecordingsSheet(tokens, branch.sheetId, classes);
+
+    res.json({
+      message: "All branch recordings synced to single Google Sheet",
+      sheetUrl: result.sheetUrl,
+      syncedCount: result.syncedCount,
+    });
+  } catch (error) {
+    return handleGoogleApiError(error, req.user._id, res, "Failed to sync recordings to Google Sheet");
+  }
+};
+
+/* =====================================================
+   AI DATA CLEANING & STAKEHOLDER DISPATCH
+===================================================== */
+
+/**
+ * Preview cleaned and normalized attendance data before dispatching.
+ */
+export const aiPreviewCleanedAttendance = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { requirements = "", selectedColumns = [] } = req.body;
+
+    const classDoc = await Class.findOne({ _id: classId, teacher: req.user._id });
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found or unauthorized" });
+    }
+
+    const attendanceRecords = await Attendance.find({ class: classId })
+      .populate("student", "fullName email group college")
+      .sort({ createdAt: -1 });
+
+    if (!attendanceRecords || attendanceRecords.length === 0) {
+      return res.status(400).json({ message: "No attendance records available to clean" });
+    }
+
+    const result = await cleanAttendanceWithLLM({
+      records: attendanceRecords,
+      requirements,
+      selectedColumns,
+    });
+
+    res.json({
+      success: true,
+      summary: result.summary,
+      records: result.records,
+      engine: result.engine,
+      className: classDoc.className,
+      totalCount: result.records.length,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Failed to preview cleaned attendance" });
+  }
+};
+
+/**
+ * Clean attendance data using LLM and dispatch to Excel download, Stakeholder Email, or Google Sheet.
+ */
+export const aiCleanAndDispatchAttendance = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const {
+      requirements = "",
+      selectedColumns = [],
+      dispatchTarget = "download", // "download" | "email" | "google_sheet"
+      stakeholderEmails = "",
+      subject = "",
+    } = req.body;
+
+    const classDoc = await Class.findOne({ _id: classId, teacher: req.user._id });
+    if (!classDoc) {
+      return res.status(404).json({ message: "Class not found or unauthorized" });
+    }
+
+    const attendanceRecords = await Attendance.find({ class: classId })
+      .populate("student", "fullName email group college")
+      .sort({ createdAt: -1 });
+
+    if (!attendanceRecords || attendanceRecords.length === 0) {
+      return res.status(400).json({ message: "No attendance records available to clean" });
+    }
+
+    const cleaned = await cleanAttendanceWithLLM({
+      records: attendanceRecords,
+      requirements,
+      selectedColumns,
+    });
+
+    // Column label mapping
+    const colLabels = {
+      sNo: "S.No",
+      fullName: "Student Name",
+      email: "Email Address",
+      college: "College / Institution",
+      group: "Group / Dept",
+      joinedAt: "Joined Time",
+      leftAt: "Left Call At",
+      durationMins: "Duration (Mins)",
+      status: "Attendance Status",
+      engagement: "Engagement Category",
+      stakeholderNotes: "Notes / Engagement Flag",
+    };
+
+    const activeCols = selectedColumns.length > 0
+      ? selectedColumns
+      : ["sNo", "fullName", "email", "college", "group", "joinedAt", "leftAt", "durationMins", "status", "engagement", "stakeholderNotes"];
+
+    // Format tabular data for Excel
+    const formattedRows = cleaned.records.map((r, i) => {
+      const row = {};
+      activeCols.forEach((colKey) => {
+        const header = colLabels[colKey] || colKey;
+        row[header] = r[colKey] !== undefined ? r[colKey] : (colKey === "sNo" ? i + 1 : "-");
+      });
+      return row;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(formattedRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Cleaned Attendance");
+    const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+    const safeClassName = (classDoc.className || "Attendance").replace(/[^a-z0-9_\-]/gi, "_");
+    const filename = `${safeClassName}_Cleaned_Report.xlsx`;
+
+    // 1. DIRECT DOWNLOAD
+    if (dispatchTarget === "download") {
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      return res.send(excelBuffer);
+    }
+
+    // 2. EMAIL DISPATCH TO STAKEHOLDERS
+    if (dispatchTarget === "email") {
+      if (!stakeholderEmails || !stakeholderEmails.trim()) {
+        return res.status(400).json({ message: "Please provide at least one stakeholder recipient email." });
+      }
+
+      await sendStakeholderExcelEmail(
+        stakeholderEmails,
+        subject || `📊 Cleaned Attendance Report — ${classDoc.className}`,
+        cleaned.summary,
+        excelBuffer,
+        filename
+      );
+
+      return res.json({
+        success: true,
+        message: `Successfully sent cleaned report to ${stakeholderEmails}`,
+        summary: cleaned.summary,
+        engine: cleaned.engine,
+        recordCount: cleaned.records.length,
+      });
+    }
+
+    // 3. EXPORT TO GOOGLE SHEET
+    if (dispatchTarget === "google_sheet") {
+      const teacher = await Teacher.findById(req.user._id);
+      if (!teacher?.googleAccessToken) {
+        return res.status(400).json({
+          message: "Google account not connected. Please connect your Google account in Settings to export to Google Sheets.",
+        });
+      }
+
+      const client = (await import("../config/googleOAuth.js")).createOAuth2Client();
+      client.setCredentials({
+        access_token: teacher.googleAccessToken,
+        refresh_token: teacher.googleRefreshToken,
+      });
+      const sheets = (await import("googleapis")).google.sheets({ version: "v4", auth: client });
+
+      const headerRow = activeCols.map((c) => colLabels[c] || c);
+      const dataRows = cleaned.records.map((r, i) =>
+        activeCols.map((colKey) => (r[colKey] !== undefined ? String(r[colKey]) : (colKey === "sNo" ? String(i + 1) : "-")))
+      );
+
+      const createRes = await sheets.spreadsheets.create({
+        resource: {
+          properties: { title: `Cleaned Attendance — ${classDoc.className}` },
+          sheets: [{ properties: { title: "Cleaned Report" } }],
+        },
+      });
+
+      const spreadsheetId = createRes.data.spreadsheetId;
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: "Cleaned Report!A1",
+        valueInputOption: "USER_ENTERED",
+        resource: { values: [headerRow, ...dataRows] },
+      });
+
+      return res.json({
+        success: true,
+        message: "Successfully created stakeholder Google Sheet",
+        sheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+        summary: cleaned.summary,
+        engine: cleaned.engine,
+      });
+    }
+
+    return res.status(400).json({ message: "Invalid dispatch target specified." });
+  } catch (err) {
+    console.error("AI clean and dispatch error:", err);
+    res.status(500).json({ message: err.message || "Failed to clean and dispatch attendance" });
+  }
+};
+
 

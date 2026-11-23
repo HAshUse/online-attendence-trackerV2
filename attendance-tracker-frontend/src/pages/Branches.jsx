@@ -1,6 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
+import {
+  FolderPlus,
+  Search,
+  MoreVertical,
+  Edit2,
+  Trash2,
+  Layers,
+  ArrowRight,
+  Sparkles,
+  BarChart3,
+  Calendar,
+  Building2,
+  X,
+} from "lucide-react";
+import Toast from "../components/Toast";
 
 const YEAR_OPTIONS = [
   "1st Year",
@@ -9,7 +24,7 @@ const YEAR_OPTIONS = [
   "4th Year",
   "2024 - 2025",
   "2025 - 2026",
-  "Final Year"
+  "Final Year",
 ];
 
 function Branches() {
@@ -21,6 +36,7 @@ function Branches() {
   const [customYear, setCustomYear] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState("");
+  const [toast, setToast] = useState(null);
 
   // Edit / Rename Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -32,7 +48,10 @@ function Branches() {
 
   const navigate = useNavigate();
 
-  // ================= LOAD BRANCHES =================
+  const showToast = (message, type = "info", title = "") => {
+    setToast({ message, type, title, id: Date.now() });
+  };
+
   useEffect(() => {
     fetchBranches();
   }, []);
@@ -43,10 +62,11 @@ function Branches() {
       setBranches(res.data);
     } catch (err) {
       console.log(err);
+      showToast("Could not load your branches. Please refresh.", "error");
     }
   };
 
-  // Close 3-dot dropdown on outside click
+  // Close dropdown on outside click
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (!e.target.closest(".card-menu-wrapper")) {
@@ -79,19 +99,21 @@ function Branches() {
   const closeModal = () => {
     if (submitting) return;
     setIsModalOpen(false);
+    setFormData({ name: "", year: "" });
+    setCustomYear("");
     setModalError("");
   };
 
-  // Open Rename / Edit Modal
-  const openEditModal = (branch) => {
+  const openEditModal = (branch, e) => {
+    e.stopPropagation();
     setMenuOpenId(null);
     setEditingBranch(branch);
-    const isPreset = YEAR_OPTIONS.includes(branch.year);
+    const isPredefined = YEAR_OPTIONS.includes(branch.year);
     setEditFormData({
       name: branch.name,
-      year: isPreset ? branch.year : branch.year ? "Custom" : "",
+      year: isPredefined ? branch.year : "other",
     });
-    setEditCustomYear(!isPreset ? branch.year || "" : "");
+    setEditCustomYear(isPredefined ? "" : branch.year || "");
     setEditModalError("");
     setEditModalOpen(true);
   };
@@ -100,439 +122,346 @@ function Branches() {
     if (editSubmitting) return;
     setEditModalOpen(false);
     setEditingBranch(null);
+    setEditFormData({ name: "", year: "" });
+    setEditCustomYear("");
     setEditModalError("");
   };
 
-  // ================= CREATE BRANCH =================
-  const createBranch = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
-      setModalError("Please enter a branch name");
+    const branchName = formData.name.trim();
+    const finalYear =
+      formData.year === "other" ? customYear.trim() : formData.year.trim();
+
+    if (!branchName) {
+      setModalError("Please enter a branch name.");
+      return;
+    }
+    if (!finalYear) {
+      setModalError("Please select or enter an academic year.");
       return;
     }
 
-    const selectedYear = formData.year === "Custom" ? customYear.trim() : formData.year;
-
     setSubmitting(true);
     setModalError("");
-
     try {
-      await API.post("/branches/create", {
-        name: formData.name.trim(),
-        year: selectedYear
+      const res = await API.post("/branches", {
+        name: branchName,
+        year: finalYear,
       });
+      setBranches((prev) => [res.data, ...prev]);
       closeModal();
-      fetchBranches();
+      showToast(`Branch "${branchName}" created!`, "success", "Branch Created");
     } catch (err) {
-      setModalError(err.response?.data?.message || err.message || "Failed to create branch. Please try again.");
+      setModalError(
+        err.response?.data?.message || err.message || "Failed to create branch."
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ================= UPDATE / RENAME BRANCH =================
-  const handleUpdateBranch = async (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    if (!editFormData.name.trim()) {
-      setEditModalError("Please enter a branch name");
+    const branchName = editFormData.name.trim();
+    const finalYear =
+      editFormData.year === "other"
+        ? editCustomYear.trim()
+        : editFormData.year.trim();
+
+    if (!branchName) {
+      setEditModalError("Please enter a branch name.");
+      return;
+    }
+    if (!finalYear) {
+      setEditModalError("Please select or enter an academic year.");
       return;
     }
 
-    const selectedYear =
-      editFormData.year === "Custom" ? editCustomYear.trim() : editFormData.year;
-
     setEditSubmitting(true);
     setEditModalError("");
-
     try {
-      const res = await API.put(`/branches/update/${editingBranch._id}`, {
-        name: editFormData.name.trim(),
-        year: selectedYear,
+      const res = await API.put(`/branches/${editingBranch._id}`, {
+        name: branchName,
+        year: finalYear,
       });
-
       setBranches((prev) =>
-        prev.map((b) =>
-          b._id === editingBranch._id
-            ? { ...b, name: res.data.name, year: res.data.year }
-            : b
-        )
+        prev.map((b) => (b._id === editingBranch._id ? res.data : b))
       );
       closeEditModal();
+      showToast("Branch updated successfully!", "success", "Saved");
     } catch (err) {
-      setEditModalError(err.response?.data?.message || err.message || "Failed to rename branch. Please try again.");
+      setEditModalError(
+        err.response?.data?.message || err.message || "Failed to update branch."
+      );
     } finally {
       setEditSubmitting(false);
     }
   };
 
-  const openBranch = (branch) => {
-    navigate(`/dashboard/${branch._id}`);
-  };
-
-  const openAnalytics = (branch) => {
-    navigate(`/branch/${branch._id}`);
-  };
-
-  // ================= DELETE BRANCH =================
-  const deleteBranch = async (branchId) => {
+  const handleDelete = async (branchId, branchName, e) => {
+    e.stopPropagation();
     setMenuOpenId(null);
-    const confirmDelete = window.confirm(
-      "Delete this branch?\nAll classes & attendance will be permanently removed!"
+    const confirmed = window.confirm(
+      `Delete "${branchName}"?\nAll classes and attendance records inside this branch will be permanently removed!`
     );
-
-    if (!confirmDelete) return;
+    if (!confirmed) return;
 
     try {
-      await API.delete(`/branches/delete/${branchId}`);
+      await API.delete(`/branches/${branchId}`);
       setBranches((prev) => prev.filter((b) => b._id !== branchId));
+      showToast(`Branch "${branchName}" deleted.`, "info", "Branch Removed");
     } catch (err) {
-      alert(err.response?.data?.message || err.message || "Failed to delete branch. Please try again.");
+      showToast(err.response?.data?.message || "Failed to delete branch.", "error");
     }
   };
 
-  const handleCardClick = (e, branch) => {
-    if (e.target.closest(".card-menu-wrapper")) return;
-    openBranch(branch);
-  };
-
-  // Filtered branches by search term
-  const filteredBranches = branches.filter((b) => {
-    const term = searchTerm.toLowerCase();
-    const nameMatch = b.name.toLowerCase().includes(term);
-    const yearMatch = b.year ? b.year.toLowerCase().includes(term) : false;
-    return nameMatch || yearMatch;
-  });
+  const filteredBranches = branches.filter((b) =>
+    b.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="p-5 sm:p-9 min-h-screen bg-[var(--bg)] transition-colors duration-200 max-w-[1180px] mx-auto">
-      {/* HEADER */}
-      <div className="text-center mb-7">
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--text)] tracking-tight m-0">
-          Your Branches
-        </h2>
-        <p className="text-sm text-[var(--subtext)] mt-1.5">
-          Manage your active class branches and attendance registers
-        </p>
-      </div>
+    <div className="min-h-screen bg-[var(--bg)] px-4 py-8 sm:px-6 md:px-10 transition-colors duration-200">
+      <div className="max-w-6xl mx-auto">
+        {/* HEADER SECTION */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary-light)] border border-[var(--primary)]/20 text-[var(--primary)] text-xs font-semibold mb-2">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Academic Workspace</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-heading)] tracking-tight">
+              Branches & Batches
+            </h1>
+            <p className="text-xs sm:text-sm text-[var(--subtext)] mt-1">
+              Select a branch to manage classes, view student attendance, and monitor analytics.
+            </p>
+          </div>
 
-      {/* SEARCH BAR & CREATE BRANCH BUTTON */}
-      <div className="flex flex-col sm:flex-row justify-center items-center gap-3 mb-9 max-w-[720px] mx-auto w-full">
-        {/* Search Input */}
-        <div className="relative flex-1 w-full">
-          <svg
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] pointer-events-none"
-            xmlns="http://www.w3.org/2000/svg"
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search branches by name or year..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full py-3 pl-11 pr-10 rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--card)] text-[var(--text)] text-sm outline-none transition-all duration-200 shadow-[var(--shadow-sm)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:ring-2 focus:ring-[var(--primary-light)]"
-          />
-          {searchTerm && (
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] p-1 rounded-md text-base leading-none cursor-pointer"
-              title="Clear search"
+              onClick={openModal}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs sm:text-sm font-semibold shadow-md shadow-indigo-500/20 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
             >
-              ×
+              <FolderPlus className="w-4 h-4" />
+              <span>New Branch</span>
             </button>
-          )}
+          </div>
         </div>
 
-        {/* Create Branch Button (Triggers Popup Modal) */}
-        <button
-          type="button"
-          onClick={openModal}
-          className="w-full sm:w-auto py-3 px-5.5 border-0 rounded-xl bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white font-semibold text-sm cursor-pointer transition-all duration-200 shadow-[0_2px_10px_rgba(99,102,241,0.3)] whitespace-nowrap flex items-center justify-center gap-2 hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(99,102,241,0.45)] active:scale-95"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Create Branch
-        </button>
-      </div>
-
-      {/* BRANCH CARDS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5.5 w-full">
-        {branches.length === 0 ? (
-          <div className="col-span-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-12 text-center text-[var(--subtext)] text-[14.5px]">
-            <p>No branches created yet. Click <strong>+ Create Branch</strong> to add your first branch!</p>
+        {/* SEARCH & FILTERS BAR */}
+        <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--card)] border border-[var(--border)] shadow-xs mb-8 transition-colors">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search branches by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full h-10 pl-10 pr-4 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] transition-colors"
+            />
           </div>
-        ) : filteredBranches.length === 0 ? (
-          <div className="col-span-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-10 text-center text-[var(--subtext)] text-[14.5px]">
-            <div className="text-3xl mb-2">🔍</div>
-            <p className="font-semibold text-[var(--text)]">No branches found matching "{searchTerm}"</p>
-            <p className="text-xs text-[var(--subtext)] mt-1">Try searching with a different keyword.</p>
+          <div className="text-xs font-semibold text-[var(--subtext)] px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] shrink-0 hidden sm:block">
+            {filteredBranches.length} {filteredBranches.length === 1 ? "Branch" : "Branches"}
+          </div>
+        </div>
+
+        {/* BRANCH CARDS GRID */}
+        {filteredBranches.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--card)]/50 p-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center mx-auto mb-4">
+              <Layers className="w-7 h-7" />
+            </div>
+            <h3 className="text-base font-bold text-[var(--text)] mb-1">
+              {searchTerm ? "No matching branches" : "No branches created yet"}
+            </h3>
+            <p className="text-xs sm:text-sm text-[var(--subtext)] max-w-sm mx-auto mb-6">
+              {searchTerm
+                ? `No branch matched "${searchTerm}". Clear your search query to see all branches.`
+                : "Create your first branch batch (e.g. CSE 3rd Year) to start scheduling live attendance classes."}
+            </p>
+            {searchTerm ? (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] hover:bg-[var(--card-hover)] cursor-pointer"
+              >
+                Clear Search
+              </button>
+            ) : (
+              <button
+                onClick={openModal}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs sm:text-sm font-semibold shadow-md shadow-indigo-500/25 cursor-pointer"
+              >
+                <FolderPlus className="w-4 h-4" /> Create Branch
+              </button>
+            )}
           </div>
         ) : (
-          filteredBranches.map((b) => {
-            const formattedTag = b.name.toUpperCase().replace(/\s+/g, "-");
-            const isMenuOpen = menuOpenId === b._id;
-
-            return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredBranches.map((branch) => (
               <div
-                key={b._id}
-                className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] overflow-hidden transition-all duration-200 flex flex-col relative cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-md)] hover:border-emerald-500/40 group"
-                onClick={(e) => handleCardClick(e, b)}
+                key={branch._id}
+                onClick={() => navigate(`/dashboard/${branch._id}`)}
+                className="group relative rounded-2xl border border-[var(--border)] bg-[var(--card)] hover:border-[var(--border-focus)] p-5 sm:p-6 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-all duration-200 cursor-pointer flex flex-col justify-between hover:-translate-y-0.5"
               >
-                {/* Top Green Accent Bar */}
-                <div className="h-[4.5px] bg-gradient-to-r from-emerald-500 to-emerald-400 w-full" />
-
-                <div className="p-5 sm:p-5.5 flex flex-col flex-1 justify-between">
-                  {/* Header Row: Tag, Year, Status, 3-Dot Menu */}
-                  <div className="flex items-center justify-between mb-4 gap-2">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="bg-[var(--bg-secondary)] text-[var(--subtext)] text-[10.5px] font-bold uppercase py-1 px-2.5 rounded-md tracking-wider border border-[var(--border)]">
-                        {formattedTag}
-                      </span>
-                      {b.year && (
-                        <span className="bg-[var(--primary-light)] text-[var(--primary)] text-[10.5px] font-bold py-1 px-2 rounded-md tracking-wide">
-                          📅 {b.year}
-                        </span>
-                      )}
-                      <span className="bg-emerald-500/10 text-emerald-500 text-[11px] font-bold py-0.5 px-2.5 rounded-full inline-flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> Active
-                      </span>
+                {/* TOP ROW */}
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-[var(--primary-light)] border border-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center font-bold text-base group-hover:scale-105 transition-transform">
+                      {branch.name.charAt(0).toUpperCase()}
                     </div>
 
-                    {/* 3-Dot Options Menu */}
-                    <div className="card-menu-wrapper relative">
+                    {/* MENU DROPDOWN */}
+                    <div
+                      className="card-menu-wrapper relative"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
-                        className="bg-transparent border-0 text-[var(--subtext)] text-lg w-7.5 h-7.5 rounded-md cursor-pointer flex items-center justify-center transition-colors hover:bg-[var(--bg-secondary)] hover:text-[var(--text)]"
-                        onClick={() => setMenuOpenId(isMenuOpen ? null : b._id)}
+                        onClick={() =>
+                          setMenuOpenId(menuOpenId === branch._id ? null : branch._id)
+                        }
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
                         title="Options"
-                        aria-label="Options"
                       >
-                        ⋮
+                        <MoreVertical className="w-4 h-4" />
                       </button>
 
-                      {isMenuOpen && (
-                        <div className="absolute top-8.5 right-0 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-[var(--shadow-lg)] w-48 p-1.5 z-50 animate-[fadeIn_0.15s_ease-out]">
+                      {menuOpenId === branch._id && (
+                        <div className="absolute right-0 top-9 w-36 rounded-xl border border-[var(--border)] bg-[var(--card)]/95 backdrop-blur-xl shadow-xl p-1 z-30 animate-[dropdownIn_0.15s_ease-out]">
                           <button
-                            className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--text)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--bg-secondary)]"
-                            onClick={() => openBranch(b)}
+                            onClick={(e) => openEditModal(branch, e)}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold rounded-lg text-[var(--text)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
                           >
-                            📂 View Classes
+                            <Edit2 className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>Rename</span>
                           </button>
                           <button
-                            className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--text)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--bg-secondary)]"
-                            onClick={() => openAnalytics(b)}
+                            onClick={(e) => handleDelete(branch._id, branch.name, e)}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
                           >
-                            📊 View Analytics
-                          </button>
-                          <button
-                            className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--text)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--bg-secondary)]"
-                            onClick={() => openEditModal(b)}
-                          >
-                            ✏️ Rename Branch
-                          </button>
-                          {b.sheetUrl && (
-                            <a
-                              href={b.sheetUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--text)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--bg-secondary)] no-underline"
-                            >
-                              📊 Google Sheet
-                            </a>
-                          )}
-                          <div className="h-px bg-[var(--border)] my-1" />
-                          <button
-                            className="w-full text-left bg-transparent border-0 py-2 px-3 text-[13px] font-semibold text-[var(--danger)] rounded-md cursor-pointer block transition-colors hover:bg-[var(--danger-light)]"
-                            onClick={() => deleteBranch(b._id)}
-                          >
-                            🗑️ Delete Branch
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
                           </button>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Body: Title & Description */}
-                  <div className="mb-6">
-                    <h3
-                      className="text-[18.5px] font-extrabold text-[var(--text)] mb-2 cursor-pointer transition-colors leading-tight group-hover:text-[var(--primary)]"
-                      onClick={() => openBranch(b)}
-                    >
-                      {b.name}
-                    </h3>
-                    <p className="text-[13px] text-[var(--subtext)] leading-relaxed m-0">
-                      Attendance register, student tracking, and live session management.
-                    </p>
-                  </div>
+                  <h3 className="font-bold text-base sm:text-lg text-[var(--text-heading)] group-hover:text-[var(--primary)] transition-colors truncate">
+                    {branch.name}
+                  </h3>
 
-                  {/* Footer Row: Meta & Action Link */}
-                  <div className="flex items-center justify-between pt-3.5 border-t border-[var(--border)] gap-3">
-                    <div className="text-[12.5px] font-semibold text-[var(--subtext)] flex items-center gap-3">
-                      <span>📖 {b.classCount || 0} Classes</span>
-                    </div>
-
-                    <button
-                      className="bg-transparent border-0 text-[var(--primary)] text-[13.5px] font-bold cursor-pointer inline-flex items-center gap-1 transition-all duration-200 p-0 hover:text-[var(--primary-hover)] hover:translate-x-1"
-                      onClick={() => openBranch(b)}
-                    >
-                      View Classes →
-                    </button>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--subtext)] text-[11px] font-semibold mt-2 select-none">
+                    <Calendar className="w-3 h-3" />
+                    <span>{branch.year || "Academic Batch"}</span>
                   </div>
                 </div>
+
+                {/* BOTTOM ACTION BAR */}
+                <div className="pt-5 mt-5 border-t border-[var(--border)] flex items-center justify-between text-xs font-semibold text-[var(--subtext)] group-hover:text-[var(--primary)] transition-colors">
+                  <span className="inline-flex items-center gap-1">
+                    <BarChart3 className="w-3.5 h-3.5" /> View Classes & Analytics
+                  </span>
+                  <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+                </div>
               </div>
-            );
-          })
+            ))}
+          </div>
         )}
       </div>
 
-      {/* CREATE BRANCH POPUP MODAL */}
+      {/* CREATE BRANCH MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
-          {/* Modal Overlay / Backdrop Click Handler */}
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-[fadeIn_0.15s_ease-out]">
           <div className="fixed inset-0" onClick={closeModal} />
-
-          {/* Modal Content */}
-          <div className="relative bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 sm:p-7 shadow-2xl max-w-md w-full z-10 transition-colors duration-200">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-5">
+          <div className="relative bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 sm:p-7 shadow-2xl max-w-md w-full z-10 transition-colors">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-6 bg-gradient-to-b from-[var(--primary)] to-purple-500 rounded-full inline-block" />
-                <h3 className="text-xl font-bold text-[var(--text)] tracking-tight m-0">
+                <div className="w-9 h-9 rounded-xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
+                  <FolderPlus className="w-4 h-4" />
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-[var(--text-heading)]">
                   Create New Branch
                 </h3>
               </div>
               <button
-                type="button"
                 onClick={closeModal}
-                disabled={submitting}
-                className="p-1 rounded-lg text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
-                title="Close"
+                className="text-[var(--subtext)] hover:text-[var(--text)] p-1 rounded-lg cursor-pointer"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-[var(--subtext)] mb-5">
-              Enter the branch details to set up a new attendance register.
-            </p>
+            {modalError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs">
+                {modalError}
+              </div>
+            )}
 
-            {/* Form */}
-            <form onSubmit={createBranch} className="flex flex-col gap-4">
-              {/* Branch Name Field */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider">
-                  Branch Name <span className="text-red-500">*</span>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                  Branch / Department Name
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Web Development, Data Analytics, Python"
+                  placeholder="e.g. Computer Science Engineering"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] transition-colors"
                   autoFocus
-                  className="w-full py-2.5 px-3.5 text-sm rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
                 />
               </div>
 
-              {/* Branch Year Field */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider">
-                  Branch / Academic Year
+              <div>
+                <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                  Academic Year / Batch
                 </label>
                 <select
                   value={formData.year}
                   onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                  className="w-full py-2.5 px-3.5 text-sm rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none cursor-pointer transition-all duration-200 focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] focus:outline-none focus:border-[var(--border-focus)] transition-colors cursor-pointer"
                 >
-                  <option value="">Select Year (Optional)</option>
-                  {YEAR_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt} className="bg-[var(--card)] text-[var(--text)]">
-                      {opt}
+                  <option value="">Select an academic year...</option>
+                  {YEAR_OPTIONS.map((yr) => (
+                    <option key={yr} value={yr}>
+                      {yr}
                     </option>
                   ))}
-                  <option value="Custom" className="bg-[var(--card)] text-[var(--text)]">
-                    + Enter Custom Year
-                  </option>
+                  <option value="other">Custom Year / Batch...</option>
                 </select>
               </div>
 
-              {/* Custom Year Text Input (if Custom selected) */}
-              {formData.year === "Custom" && (
-                <div className="flex flex-col gap-1.5 animate-[fadeIn_0.15s_ease-out]">
-                  <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider">
-                    Custom Year Specification
+              {formData.year === "other" && (
+                <div className="animate-[fadeIn_0.15s_ease-out]">
+                  <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                    Custom Academic Year
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Batch 2026, Semester 3"
+                    placeholder="e.g. 2026 - 2030 or Fall 2026"
                     value={customYear}
                     onChange={(e) => setCustomYear(e.target.value)}
-                    required
-                    className="w-full py-2.5 px-3.5 text-sm rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] transition-colors"
                   />
                 </div>
               )}
 
-              {/* Error Message */}
-              {modalError && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    <span>{modalError}</span>
-                  </div>
-                  {modalError.toLowerCase().includes("log in") && (
-                    <button
-                      type="button"
-                      onClick={() => navigate("/")}
-                      className="px-2.5 py-1 bg-red-500 text-white rounded-md text-[11px] font-bold hover:bg-red-600 transition-colors shrink-0 cursor-pointer"
-                    >
-                      Log In
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 mt-2">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border)]">
                 <button
                   type="button"
                   onClick={closeModal}
                   disabled={submitting}
-                  className="py-2.5 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] text-[var(--text)] text-sm font-semibold transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || !formData.name.trim()}
-                  className="py-2.5 px-5 rounded-xl bg-gradient-to-br from-[var(--primary)] to-purple-600 hover:from-[var(--primary-hover)] hover:to-purple-700 text-white text-sm font-semibold shadow-[0_2px_10px_rgba(99,102,241,0.3)] transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2 cursor-pointer"
+                  disabled={submitting}
+                  className="px-5 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold shadow-md shadow-indigo-500/25 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {submitting ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Creating...
-                    </>
-                  ) : (
-                    "+ Create Branch"
-                  )}
+                  {submitting ? "Creating..." : "Create Branch"}
                 </button>
               </div>
             </form>
@@ -540,149 +469,109 @@ function Branches() {
         </div>
       )}
 
-      {/* RENAME BRANCH POPUP MODAL */}
+      {/* EDIT BRANCH MODAL */}
       {editModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
-          {/* Modal Overlay / Backdrop Click Handler */}
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-[fadeIn_0.15s_ease-out]">
           <div className="fixed inset-0" onClick={closeEditModal} />
-
-          {/* Modal Content */}
-          <div className="relative bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 sm:p-7 shadow-2xl max-w-md w-full z-10 transition-colors duration-200">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-5">
+          <div className="relative bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 sm:p-7 shadow-2xl max-w-md w-full z-10 transition-colors">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full inline-block" />
-                <h3 className="text-xl font-bold text-[var(--text)] tracking-tight m-0">
-                  Rename Branch
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-[var(--text-heading)]">
+                  Edit Branch
                 </h3>
               </div>
               <button
-                type="button"
                 onClick={closeEditModal}
-                disabled={editSubmitting}
-                className="p-1 rounded-lg text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
-                title="Close"
+                className="text-[var(--subtext)] hover:text-[var(--text)] p-1 rounded-lg cursor-pointer"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-[var(--subtext)] mb-5">
-              Update the branch name and academic year.
-            </p>
+            {editModalError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs">
+                {editModalError}
+              </div>
+            )}
 
-            {/* Form */}
-            <form onSubmit={handleUpdateBranch} className="flex flex-col gap-4">
-              {/* Branch Name Field */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider">
-                  Branch Name <span className="text-red-500">*</span>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                  Branch Name
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Web Development, Data Analytics"
                   value={editFormData.name}
                   onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  required
-                  autoFocus
-                  className="w-full py-2.5 px-3.5 text-sm rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] transition-colors"
                 />
               </div>
 
-              {/* Branch Year Field */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider">
-                  Branch / Academic Year
+              <div>
+                <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                  Academic Year / Batch
                 </label>
                 <select
                   value={editFormData.year}
                   onChange={(e) => setEditFormData({ ...editFormData, year: e.target.value })}
-                  className="w-full py-2.5 px-3.5 text-sm rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none cursor-pointer transition-all duration-200 focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] focus:outline-none focus:border-[var(--border-focus)] transition-colors cursor-pointer"
                 >
-                  <option value="">Select Year (Optional)</option>
-                  {YEAR_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt} className="bg-[var(--card)] text-[var(--text)]">
-                      {opt}
+                  {YEAR_OPTIONS.map((yr) => (
+                    <option key={yr} value={yr}>
+                      {yr}
                     </option>
                   ))}
-                  <option value="Custom" className="bg-[var(--card)] text-[var(--text)]">
-                    + Enter Custom Year
-                  </option>
+                  <option value="other">Custom Year / Batch...</option>
                 </select>
               </div>
 
-              {/* Custom Year Text Input */}
-              {editFormData.year === "Custom" && (
-                <div className="flex flex-col gap-1.5 animate-[fadeIn_0.15s_ease-out]">
-                  <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider">
-                    Custom Year Specification
+              {editFormData.year === "other" && (
+                <div className="animate-[fadeIn_0.15s_ease-out]">
+                  <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                    Custom Year
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Batch 2026, Semester 3"
                     value={editCustomYear}
                     onChange={(e) => setEditCustomYear(e.target.value)}
-                    required
-                    className="w-full py-2.5 px-3.5 text-sm rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] transition-colors"
                   />
                 </div>
               )}
 
-              {/* Error Message */}
-              {editModalError && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    <span>{editModalError}</span>
-                  </div>
-                  {editModalError.toLowerCase().includes("log in") && (
-                    <button
-                      type="button"
-                      onClick={() => navigate("/")}
-                      className="px-2.5 py-1 bg-red-500 text-white rounded-md text-[11px] font-bold hover:bg-red-600 transition-colors shrink-0 cursor-pointer"
-                    >
-                      Log In
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 mt-2">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border)]">
                 <button
                   type="button"
                   onClick={closeEditModal}
                   disabled={editSubmitting}
-                  className="py-2.5 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] text-[var(--text)] text-sm font-semibold transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={editSubmitting || !editFormData.name.trim()}
-                  className="py-2.5 px-5 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-semibold shadow-[0_2px_10px_rgba(37,99,235,0.3)] transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2 cursor-pointer"
+                  disabled={editSubmitting}
+                  className="px-5 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold shadow-md shadow-indigo-500/25 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {editSubmitting ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Saving...
-                    </>
-                  ) : (
-                    "Save Changes"
-                  )}
+                  {editSubmitting ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </form>
           </div>
         </div>
+      )}
+
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          title={toast.title}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

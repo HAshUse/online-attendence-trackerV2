@@ -59,7 +59,7 @@ API.interceptors.response.use(
         }
       } else if (status === 404) {
         if (!rawMsg) {
-          rawMsg = "The requested resource was not found.";
+          rawMsg = "Endpoint not found (404). If you just added a feature, please restart your backend server.";
         }
       } else if (status >= 500) {
         if (!rawMsg || rawMsg.length > 150) {

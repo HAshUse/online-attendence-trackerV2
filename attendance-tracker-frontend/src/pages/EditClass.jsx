@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../services/api";
+import Toast from "../components/Toast";
 
 // Convert "HH:MM" (24h) to 12-hour object { hour, minute, period }
 const parse24 = (timeStr) => {
@@ -119,6 +120,11 @@ function EditClass() {
   const [invitedGuests, setInvitedGuests] = useState([]);
   const [guestInput, setGuestInput] = useState("");
   const [guestRole, setGuestRole] = useState("GUEST");
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info", title = "") => {
+    setToast({ message, type, title, id: Date.now() });
+  };
 
   const [form, setForm] = useState({
     className: "",
@@ -136,15 +142,16 @@ function EditClass() {
     if (e) e.preventDefault();
     const email = guestInput.trim().toLowerCase();
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
-      alert("Please enter a valid email address");
+      showToast("Please enter a valid email address.", "warning", "Invalid Email");
       return;
     }
     if (invitedGuests.some((g) => g.email === email)) {
-      alert("This guest is already added");
+      showToast("This guest is already added to the list.", "warning", "Already Added");
       return;
     }
     setInvitedGuests([...invitedGuests, { email, role: guestRole }]);
     setGuestInput("");
+    showToast(`Added ${email} as ${guestRole === "COHOST" ? "Co-host" : "Guest"}.`, "success", "Guest Added");
   };
 
   const handleRemoveGuest = (emailToRemove) => {
@@ -218,7 +225,7 @@ function EditClass() {
 
       } catch (err) {
         console.error(err);
-        alert("Failed to load class data");
+        showToast("Failed to load class data. Please refresh.", "error", "Load Error");
       } finally {
         setLoading(false);
       }
@@ -327,7 +334,7 @@ function EditClass() {
   /* ================= REGENERATE MEET ================= */
   const handleRegenerateMeet = async () => {
     if (!googleConnected) {
-      alert("Please connect your Google account from the profile dropdown in the top navbar first!");
+      showToast("Please connect your Google account from the profile dropdown in the top navbar first!", "warning", "Google Account");
       return;
     }
 
@@ -342,10 +349,10 @@ function EditClass() {
 
       if (res.data?.class?.meetLink) {
         setForm((prev) => ({ ...prev, meetLink: res.data.class.meetLink }));
-        alert("✅ Google Meet link successfully generated and attached!");
+        showToast("Google Meet link successfully generated and attached!", "success", "Meet Linked");
       }
     } catch (err) {
-      alert(err.response?.data?.message || err.message || "Failed to regenerate Meet link. Please try again.");
+      showToast(err.response?.data?.message || err.message || "Failed to regenerate Meet link. Please try again.", "error");
     } finally {
       setRegenerating(false);
     }
@@ -363,7 +370,7 @@ function EditClass() {
     const endDateTime = new Date(`${form.classDate}T${form.endTime}:00+05:30`);
 
     if (startDateTime >= endDateTime) {
-      alert("⚠️ Class end time must be after the start time.");
+      showToast("Class end time must be after the start time.", "warning", "Invalid Timing");
       return;
     }
 
@@ -371,15 +378,30 @@ function EditClass() {
     setSubmitting(true);
 
     try {
-      await API.put(`/classes/update/${id}`, {
+      const res = await API.put(`/classes/update/${id}`, {
         ...form,
         autoRecord,
         invitedGuests
       });
-      alert("✅ Class updated successfully!");
-      navigate(form.branchId ? `/dashboard/${form.branchId}` : "/branches");
+
+      if (res.data?.recordingWarning) {
+        showToast(res.data.recordingWarning, "warning", "Workspace Pro Required");
+        setTimeout(() => {
+          navigate(form.branchId ? `/dashboard/${form.branchId}` : "/branches");
+        }, 2800);
+      } else if (autoRecord && !res.data?.class?.autoRecord) {
+        showToast("Class updated! Note: Recording cannot start without a Google Workspace Pro account.", "warning", "Workspace Pro Required");
+        setTimeout(() => {
+          navigate(form.branchId ? `/dashboard/${form.branchId}` : "/branches");
+        }, 2800);
+      } else {
+        showToast("Class updated successfully!", "success", "Saved");
+        setTimeout(() => {
+          navigate(form.branchId ? `/dashboard/${form.branchId}` : "/branches");
+        }, 900);
+      }
     } catch (err) {
-      alert(err.response?.data?.message || err.message || "Failed to update class. Please try again.");
+      showToast(err.response?.data?.message || err.message || "Failed to update class. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -720,15 +742,29 @@ function EditClass() {
 
           {/* AUTO-RECORD (Workspace Pro) */}
           {meetMode === "auto" && (
-            <div className="mb-4.5 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] hover:bg-[var(--card-hover)] transition-all">
+            <div className={`mb-4.5 p-3.5 rounded-xl border transition-all ${
+              autoRecord
+                ? "border-amber-500/40 bg-amber-500/5"
+                : "border-[var(--border)] bg-[var(--bg)] hover:bg-[var(--card-hover)]"
+            }`}>
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={autoRecord}
-                  onChange={(e) => setAutoRecord(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 accent-[var(--primary)] rounded cursor-pointer"
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setAutoRecord(checked);
+                    if (checked) {
+                      showToast(
+                        "Google Workspace Pro or Education account required. Personal Google accounts (@gmail.com) cannot record meetings.",
+                        "warning",
+                        "Workspace Pro Required"
+                      );
+                    }
+                  }}
+                  className="mt-0.5 w-4 h-4 accent-amber-500 rounded cursor-pointer"
                 />
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-1 w-full">
                   <div className="flex items-center gap-2">
                     <span className="text-[12.5px] font-bold text-[var(--text)]">🎥 Auto-record Meeting</span>
                     <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/20">
@@ -738,6 +774,14 @@ function EditClass() {
                   <span className="text-[11px] text-[var(--subtext)] leading-snug">
                     Recording starts automatically and the Drive link will be saved once the meeting concludes.
                   </span>
+                  {autoRecord && (
+                    <div className="mt-2 text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 flex items-start gap-1.5 leading-relaxed">
+                      <span className="shrink-0 text-xs mt-0.5">⚠️</span>
+                      <span>
+                        <strong>Note:</strong> Standard personal Google accounts cannot record meetings. If your account is not Workspace Pro, the class will be updated without recording.
+                      </span>
+                    </div>
+                  )}
                 </div>
               </label>
             </div>
@@ -844,6 +888,16 @@ function EditClass() {
           </div>
         </form>
       </div>
+
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          title={toast.title}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

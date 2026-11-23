@@ -32,6 +32,9 @@ function App() {
             <Route path="/dashboard" element={<Navigate to="/branches" replace />} />
             <Route path="/dashboard/:branchId" element={<Dashboard />} />
             <Route path="/branch/:branchId" element={<BranchDashboard />} />
+            <Route path="/branches/analytics/:branchId" element={<BranchDashboard />} />
+            <Route path="/branch/analytics/:branchId" element={<BranchDashboard />} />
+            <Route path="/analytics/:branchId" element={<BranchDashboard />} />
             <Route path="/create-class/:branchId" element={<CreateClass />} />
             <Route path="/class/:id" element={<ClassAttendance />} />
             <Route path="/overall-attendance/:branchId" element={<OverallAttendance />} />

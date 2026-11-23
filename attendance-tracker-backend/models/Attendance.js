@@ -12,6 +12,10 @@ const attendanceSchema = new mongoose.Schema(
       ref: "Class",
       required: true
     },
+    joinedAt: {
+      type: Date,
+      default: null
+    },
     leftAt: {
       type: Date,
       default: null

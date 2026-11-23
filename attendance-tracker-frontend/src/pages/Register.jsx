@@ -1,20 +1,37 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../services/api";
+import {
+  User,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Sparkles,
+  ShieldCheck,
+  CheckCircle2,
+} from "lucide-react";
+import Toast from "../components/Toast";
 
 function Register() {
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const navigate = useNavigate();
+
+  const showToast = (message, type = "info", title = "") => {
+    setToast({ message, type, title, id: Date.now() });
+  };
 
   const handleChange = (e) => {
     setError("");
@@ -30,146 +47,196 @@ function Register() {
       return;
     }
 
+    if (form.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await API.post("/teachers/register", {
-        name: form.name,
-        email: form.email,
-        password: form.password
+        name: form.name.trim(),
+        email: form.email.toLowerCase().trim(),
+        password: form.password,
       });
 
-      // 🔑 Direct login: Save token and teacher to localStorage
       if (res.data.token && res.data.teacher) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("teacher", JSON.stringify(res.data.teacher));
-        navigate("/branches");
+        showToast("Registration successful! Welcome to Barabari.", "success", "Welcome");
+        setTimeout(() => navigate("/branches"), 700);
       } else {
-        alert("Registration successful. Please login.");
-        navigate("/");
+        showToast("Account created successfully. Please sign in.", "success", "Account Created");
+        setTimeout(() => navigate("/"), 900);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed");
+      setError(err.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-[var(--bg)] p-6 transition-colors duration-200 relative overflow-hidden before:content-[''] before:fixed before:-top-[120px] before:-left-[120px] before:w-[400px] before:h-[400px] before:bg-[radial-gradient(circle,rgba(99,102,241,0.15),transparent_70%)] before:rounded-full before:pointer-events-none before:z-0 after:content-[''] after:fixed after:-bottom-[100px] after:-right-[100px] after:w-[350px] after:h-[350px] after:bg-[radial-gradient(circle,rgba(167,139,250,0.1),transparent_70%)] after:rounded-full after:pointer-events-none after:z-0">
-      <div className="bg-[var(--card)] p-7 sm:p-9 w-full max-w-[420px] rounded-3xl border border-[var(--border)] shadow-[var(--shadow-lg)] relative z-10 transition-all duration-200">
-        <h2 className="text-center mb-6 text-[20px] sm:text-[22px] font-bold text-[var(--text)] tracking-tight transition-colors">
-          Teacher Register
-        </h2>
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-[var(--bg)] px-4 py-12 transition-colors duration-200 relative overflow-hidden">
+      {/* Background ambient lighting */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[350px] bg-gradient-to-tr from-indigo-500/10 to-violet-500/10 blur-3xl rounded-full pointer-events-none" />
 
-        {error && (
-          <div className="bg-[var(--danger-light)] text-[var(--danger)] text-[13px] p-2.5 rounded-lg text-center mb-3 border border-red-500/20 font-semibold">
-            {error}
+      <div className="w-full max-w-md relative z-10">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary-light)] border border-[var(--primary)]/20 text-[var(--primary)] text-xs font-semibold mb-3">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Teacher Setup</span>
           </div>
-        )}
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-heading)] tracking-tight">
+            Create an Account
+          </h1>
+          <p className="text-xs sm:text-sm text-[var(--subtext)] mt-1">
+            Track student attendance seamlessly with automated Google Meet telemetry.
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          <input
-            name="name"
-            placeholder="Name"
-            value={form.name}
-            onChange={handleChange}
-            className="w-full py-2.5 px-3.5 text-sm border-[1.5px] border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
-            required
-          />
+        {/* CARD */}
+        <div className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-7 sm:p-9 shadow-[var(--shadow-lg)] transition-all">
+          {error && (
+            <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs font-medium animate-[fadeIn_0.15s_ease-out]">
+              {error}
+            </div>
+          )}
 
-          <input
-            name="email"
-            type="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            className="w-full py-2.5 px-3.5 text-sm border-[1.5px] border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
-            required
-          />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                Full Name
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  placeholder="Prof. Jane Doe"
+                  value={form.name}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-4 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] transition-colors"
+                  autoFocus
+                />
+              </div>
+            </div>
 
-          <div className="relative">
-            <input
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={form.password}
-              onChange={handleChange}
-              className="w-full py-2.5 pl-3.5 pr-10 text-sm border-[1.5px] border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
-              required
-            />
+            <div>
+              <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="name@institution.edu"
+                  value={form.email}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-4 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  required
+                  placeholder="At least 6 characters"
+                  value={form.password}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-10 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  name="confirmPassword"
+                  required
+                  placeholder="Re-enter password"
+                  value={form.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full h-11 pl-10 pr-10 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                >
+                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
             <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer bg-transparent border-0 p-0"
-              tabIndex={-1}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs sm:text-sm font-semibold shadow-md shadow-indigo-500/25 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-2"
             >
-              {showPassword ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Registering...</span>
+                </>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
+                <>
+                  <span>Create Account</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
               )}
             </button>
+          </form>
+
+          <div className="mt-6 pt-5 border-t border-[var(--border)] text-center">
+            <p className="text-xs text-[var(--subtext)]">
+              Already have an account?{" "}
+              <Link to="/" className="font-bold text-[var(--primary)] hover:underline ml-1">
+                Sign In
+              </Link>
+            </p>
           </div>
+        </div>
 
-          <div className="relative">
-            <input
-              name="confirmPassword"
-              type={showConfirm ? "text" : "password"}
-              placeholder="Confirm Password"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              className="w-full py-2.5 pl-3.5 pr-10 text-sm border-[1.5px] border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--text)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-[var(--primary-light)]"
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer bg-transparent border-0 p-0"
-              tabIndex={-1}
-              aria-label={showConfirm ? "Hide password" : "Show password"}
-            >
-              {showConfirm ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              )}
-            </button>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className={`mt-1.5 py-3 px-4 bg-gradient-to-br from-[var(--primary)] to-purple-600 text-white border-0 rounded-lg text-[15px] font-semibold transition-all duration-200 tracking-wide shadow-[0_4px_14px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.45)] active:scale-[0.98] ${loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-          >
-            {loading ? "Creating Account..." : "Create Account"}
-          </button>
-        </form>
-
-        <div className="text-center text-[13.5px] mt-4.5 text-[var(--subtext)] transition-colors">
-          Already have an account?{" "}
-          <Link to="/" className="text-[var(--primary)] font-semibold transition-all hover:underline ml-1">
-            login
-          </Link>
+        <div className="flex items-center justify-center gap-2 text-xs text-[var(--subtext)] mt-6">
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          <span>Compliant Educational Data Security</span>
         </div>
       </div>
+
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          title={toast.title}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
 
 export default Register;
-
