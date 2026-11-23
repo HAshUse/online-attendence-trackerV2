@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { ChevronRight, ArrowLeft } from "lucide-react";
 import API from "../services/api";
 import {
   PieChart,
@@ -106,6 +107,19 @@ function BranchDashboard() {
 
   return (
     <div className="p-5 sm:p-8 bg-[var(--bg)] min-h-screen text-[var(--text)] transition-colors duration-200">
+      {/* BREADCRUMB */}
+      <div className="flex items-center gap-2 text-xs font-semibold text-[var(--subtext)] mb-4">
+        <Link to="/branches" className="hover:text-[var(--primary)] transition-colors">
+          Branches
+        </Link>
+        <ChevronRight className="w-3.5 h-3.5" />
+        <Link to={`/dashboard/${branchId}`} className="hover:text-[var(--primary)] transition-colors">
+          {data.branchName}
+        </Link>
+        <ChevronRight className="w-3.5 h-3.5" />
+        <span className="text-[var(--text)]">Analytics Suite</span>
+      </div>
+
       {/* HEADER */}
       <div className="flex items-start sm:items-center justify-between mb-6 gap-4 flex-col sm:flex-row flex-wrap">
         <div>
