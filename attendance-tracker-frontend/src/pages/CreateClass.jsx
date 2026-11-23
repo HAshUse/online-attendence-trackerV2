@@ -283,7 +283,7 @@ function CreateClass() {
     setLoading(true);
 
     try {
-      await API.post("/classes/create", {
+      const res = await API.post("/classes/create", {
         ...form,
         meetLink: meetMode === "custom" ? form.meetLink.trim() : "",
         autoRecord: meetMode === "auto" ? autoRecord : false,
@@ -291,10 +291,26 @@ function CreateClass() {
         branchId,
       });
 
-      showToast("Class scheduled successfully!", "success", "Scheduled");
-      setTimeout(() => {
-        navigate(`/dashboard/${branchId}`);
-      }, 900);
+      if (res.data?.recordingWarning) {
+        showToast(res.data.recordingWarning, "warning", "Workspace Pro Required");
+        setTimeout(() => {
+          navigate(`/dashboard/${branchId}`);
+        }, 2800);
+      } else if (autoRecord && !res.data?.autoRecord) {
+        showToast(
+          "Class scheduled! Note: Recording cannot start because your Google account does not have a Workspace Pro subscription.",
+          "warning",
+          "Workspace Pro Required"
+        );
+        setTimeout(() => {
+          navigate(`/dashboard/${branchId}`);
+        }, 2800);
+      } else {
+        showToast("Class scheduled successfully!", "success", "Scheduled");
+        setTimeout(() => {
+          navigate(`/dashboard/${branchId}`);
+        }, 900);
+      }
     } catch (err) {
       showToast(err.response?.data?.message || err.message || "Failed to create class. Please try again.", "error");
     } finally {
@@ -546,15 +562,29 @@ function CreateClass() {
 
           {/* AUTO-RECORD (Workspace Pro) */}
           {meetMode === "auto" && (
-            <div className="mb-4.5 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] hover:bg-[var(--card-hover)] transition-all">
+            <div className={`mb-4.5 p-3.5 rounded-xl border transition-all ${
+              autoRecord
+                ? "border-amber-500/40 bg-amber-500/5"
+                : "border-[var(--border)] bg-[var(--bg)] hover:bg-[var(--card-hover)]"
+            }`}>
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={autoRecord}
-                  onChange={(e) => setAutoRecord(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 accent-[var(--primary)] rounded cursor-pointer"
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setAutoRecord(checked);
+                    if (checked) {
+                      showToast(
+                        "Google Workspace Pro or Education account required. Personal Google accounts (@gmail.com) cannot record meetings.",
+                        "warning",
+                        "Workspace Pro Required"
+                      );
+                    }
+                  }}
+                  className="mt-0.5 w-4 h-4 accent-amber-500 rounded cursor-pointer"
                 />
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-1 w-full">
                   <div className="flex items-center gap-2">
                     <span className="text-[12.5px] font-bold text-[var(--text)]">🎥 Auto-record Meeting</span>
                     <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/20">
@@ -564,6 +594,14 @@ function CreateClass() {
                   <span className="text-[11px] text-[var(--subtext)] leading-snug">
                     Recording starts automatically and the Drive link will be saved once the meeting concludes.
                   </span>
+                  {autoRecord && (
+                    <div className="mt-2 text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 flex items-start gap-1.5 leading-relaxed">
+                      <span className="shrink-0 text-xs mt-0.5">⚠️</span>
+                      <span>
+                        <strong>Note:</strong> Standard personal Google accounts cannot record meetings. If your account is not Workspace Pro, the class will be scheduled normally without recording.
+                      </span>
+                    </div>
+                  )}
                 </div>
               </label>
             </div>

@@ -137,6 +137,19 @@ function ClassAttendance() {
     link.remove();
   };
 
+  const handleOpenBranchRecordingsSheet = async () => {
+    try {
+      const branchId = classInfo?.branch?._id || classInfo?.branch;
+      if (!branchId) return;
+      const res = await API.post(`/attendance/branch/${branchId}/sync-recordings`);
+      if (res.data?.sheetUrl) {
+        window.open(res.data.sheetUrl, "_blank");
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || "Could not open recordings sheet.", "error");
+    }
+  };
+
   const handleExportAll = async () => {
     try {
       const res = await API.get(`/attendance/export/${id}`, { responseType: "blob" });
@@ -498,15 +511,27 @@ function ClassAttendance() {
               <p className="text-xs text-[var(--subtext)] m-0 mt-0.5">This session was automatically recorded and saved to Google Drive.</p>
             </div>
           </div>
-          <a
-            href={recordingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shadow-sm shrink-0 no-underline cursor-pointer"
-          >
-            <span>Watch on Drive</span>
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          </a>
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <a
+              href={recordingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shadow-sm shrink-0 no-underline cursor-pointer"
+            >
+              <span>Watch on Drive</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+            {classInfo?.branch && (
+              <button
+                onClick={handleOpenBranchRecordingsSheet}
+                className="px-3.5 py-2 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] border border-[var(--border)] text-[var(--text)] text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+                title="View all branch recording links in one Google Sheet"
+              >
+                <span>Branch Sheet</span>
+                <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 

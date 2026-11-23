@@ -28,6 +28,7 @@ function Dashboard() {
   const [copiedId, setCopiedId] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState("ALL");
   const [exportingMonth, setExportingMonth] = useState(null);
+  const [syncingRecordings, setSyncingRecordings] = useState(false);
   const [toast, setToast] = useState(null);
 
   const navigate = useNavigate();
@@ -134,6 +135,29 @@ function Dashboard() {
     }
   };
 
+  /* ================= SYNC ALL RECORDINGS TO MASTER SHEET ================= */
+  const handleSyncRecordingsSheet = async () => {
+    try {
+      setSyncingRecordings(true);
+      const res = await API.post(`/attendance/branch/${branchId}/sync-recordings`);
+      showToast(
+        res.data?.message || "Branch recordings synced to Google Sheet!",
+        "success",
+        "Synced to Sheet"
+      );
+      if (res.data?.sheetUrl) {
+        window.open(res.data.sheetUrl, "_blank");
+      }
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "Failed to sync recordings to Google Sheet.",
+        "error"
+      );
+    } finally {
+      setSyncingRecordings(false);
+    }
+  };
+
   // Distinct months calculation
   const months = Array.from(
     new Set(
@@ -182,6 +206,16 @@ function Dashboard() {
 
           {/* ACTION BUTTONS */}
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={handleSyncRecordingsSheet}
+              disabled={syncingRecordings}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-amber-500/40 text-[var(--text)] text-xs sm:text-sm font-semibold transition-all hover:bg-[var(--card-hover)] cursor-pointer disabled:opacity-50"
+              title="Sync all class recording links for this branch into a single Google Sheet"
+            >
+              <Video className="w-4 h-4 text-amber-400" />
+              <span>{syncingRecordings ? "Syncing Sheet..." : "Recordings Sheet"}</span>
+            </button>
+
             <button
               onClick={() => navigate(`/branches/analytics/${branchId}`)}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--border-focus)] text-[var(--text)] text-xs sm:text-sm font-semibold transition-all hover:bg-[var(--card-hover)] cursor-pointer"

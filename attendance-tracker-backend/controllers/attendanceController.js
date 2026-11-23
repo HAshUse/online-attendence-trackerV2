@@ -6,6 +6,8 @@ import Branch from "../models/Branch.js";
 import Teacher from "../models/Teacher.js";
 import {
   markStudentPresent,
+  createBranchSheet,
+  syncBranchRecordingsSheet,
   exportClassAttendanceToSheet,
   exportOverallAttendanceToSheet,
   getSheetUrl,
@@ -277,6 +279,23 @@ export const syncClassMeetTelemetry = async (req, res) => {
           classDoc.recordingUrl = recordingInfo.recordingUrl;
           classDoc.recordingFileId = recordingInfo.recordingFileId || "";
           await classDoc.save();
+
+          // Auto-sync this recording link into the branch's single Google Sheet
+          try {
+            const branch = await Branch.findById(classDoc.branch);
+            if (branch?.sheetId && teacher?.googleAccessToken) {
+              await syncBranchRecordingsSheet(
+                {
+                  access_token: teacher.googleAccessToken,
+                  refresh_token: teacher.googleRefreshToken,
+                },
+                branch.sheetId,
+                classDoc
+              );
+            }
+          } catch (sheetSyncErr) {
+            console.warn("Could not sync recording link to branch sheet:", sheetSyncErr.message);
+          }
           break;
         }
       } catch (recErr) {
@@ -1022,6 +1041,53 @@ export const exportOverallToGoogleSheet = async (req, res) => {
     });
   } catch (error) {
     return handleGoogleApiError(error, teacherId, res, "Failed to export to Google Sheets");
+  }
+};
+
+/* =====================================================
+   SYNC ALL BRANCH RECORDINGS TO SINGLE GOOGLE SHEET
+===================================================== */
+export const syncBranchRecordingsToGoogleSheet = async (req, res) => {
+  try {
+    const teacherId = req.user._id;
+    const { branchId } = req.params;
+
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.googleAccessToken) {
+      return res.status(400).json({
+        message: "Please connect your Google Account first to sync with Google Sheets.",
+      });
+    }
+
+    const branch = await Branch.findOne({ _id: branchId, teacher: teacherId });
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
+
+    const tokens = {
+      googleAccessToken: teacher.googleAccessToken,
+      googleRefreshToken: teacher.googleRefreshToken,
+    };
+
+    // If branch doesn't have a master Google Sheet yet, create one
+    if (!branch.sheetId) {
+      const newSheetId = await createBranchSheet(tokens, branch.name);
+      branch.sheetId = newSheetId;
+      await branch.save();
+    }
+
+    // Fetch all classes for this branch
+    const classes = await Class.find({ branch: branchId }).sort({ createdAt: 1 });
+
+    const result = await syncBranchRecordingsSheet(tokens, branch.sheetId, classes);
+
+    res.json({
+      message: "All branch recordings synced to single Google Sheet",
+      sheetUrl: result.sheetUrl,
+      syncedCount: result.syncedCount,
+    });
+  } catch (error) {
+    return handleGoogleApiError(error, req.user._id, res, "Failed to sync recordings to Google Sheet");
   }
 };
 

@@ -53,6 +53,8 @@ export const createMeetLink = async (
   let meetLink = "";
   let meetingCode = "";
   let spaceName = "";
+  let recordingWarning = null;
+  let autoRecordSuccess = false;
 
   // 1. If open access, create space via Meet API v2 with accessType = "OPEN"
   if (isOpen) {
@@ -66,6 +68,7 @@ export const createMeetLink = async (
       };
 
       // Auto-recording (only supported on Google Workspace Pro/Education tiers)
+
       if (options.autoRecord) {
         spaceRequestBody.config.artifactConfig = {
           recordingConfig: {
@@ -77,10 +80,14 @@ export const createMeetLink = async (
       let spaceRes;
       try {
         spaceRes = await meetApi.spaces.create({ requestBody: spaceRequestBody });
+        if (options.autoRecord) {
+          autoRecordSuccess = true;
+        }
       } catch (recErr) {
         // If autoRecord failed due to license/permission, retry without recordingConfig
         if (options.autoRecord) {
           console.warn("Auto-recording not supported on this account type, falling back to standard open space:", recErr.message);
+          recordingWarning = "Auto-recording could not be enabled: Your Google account does not have a Google Workspace Pro or Education license.";
           delete spaceRequestBody.config.artifactConfig;
           spaceRes = await meetApi.spaces.create({ requestBody: spaceRequestBody });
         } else {
@@ -186,5 +193,17 @@ export const createMeetLink = async (
     )?.uri ||
     response.data.hangoutLink;
 
-  return finalMeetLink;
+  if (options.autoRecord && !autoRecordSuccess && !recordingWarning) {
+    recordingWarning = "Auto-recording is unavailable: Your Google account does not support Meet recording (Google Workspace Pro or Education edition required).";
+  }
+
+  // Return rich object with string coercion for full backward compatibility
+  return {
+    meetLink: finalMeetLink,
+    recordingWarning,
+    autoRecordSuccess,
+    toString() {
+      return finalMeetLink || "";
+    },
+  };
 };

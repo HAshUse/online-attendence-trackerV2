@@ -493,3 +493,192 @@ export const exportOverallAttendanceToSheet = async (tokens, branchName, sheetDa
  */
 export const getSheetUrl = (spreadsheetId) =>
   `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+
+/**
+ * Sync recordings from a branch into a single master "Recordings" tab
+ * inside the branch's Google Spreadsheet.
+ *
+ * @param {object} tokens - Teacher's Google tokens
+ * @param {string} spreadsheetId - Branch's Google Spreadsheet ID
+ * @param {Array<object>|object} classes - Array of class documents or single classDoc
+ * @returns {object} { spreadsheetId, sheetUrl, syncedCount }
+ */
+export const syncBranchRecordingsSheet = async (tokens, spreadsheetId, classes = []) => {
+  const client = createOAuth2Client();
+  client.setCredentials({
+    access_token: tokens.googleAccessToken || tokens.access_token,
+    refresh_token: tokens.googleRefreshToken || tokens.refresh_token,
+  });
+  const sheets = google.sheets({ version: "v4", auth: client });
+
+  const classList = Array.isArray(classes) ? classes : [classes];
+
+  // 1. Get spreadsheet metadata to check if "Recordings" tab exists
+  let meta;
+  try {
+    meta = await sheets.spreadsheets.get({ spreadsheetId });
+  } catch (err) {
+    throw new Error(`Could not access Google Sheet (${spreadsheetId}): ${err.message}`);
+  }
+
+  const sheetList = meta.data.sheets || [];
+  let recordingsSheet = sheetList.find(
+    (s) => (s.properties.title || "").toLowerCase() === "recordings"
+  );
+
+  let recordingsSheetId = recordingsSheet ? recordingsSheet.properties.sheetId : null;
+
+  // If "Recordings" tab does not exist, create it
+  if (!recordingsSheet) {
+    const addRes = await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: "Recordings",
+                gridProperties: { frozenRowCount: 1 },
+              },
+            },
+          },
+        ],
+      },
+    });
+    recordingsSheetId = addRes.data.replies?.[0]?.addSheet?.properties?.sheetId || 0;
+  }
+
+  // 2. Read existing data from "Recordings" tab
+  const range = `'Recordings'!A:Z`;
+  let existingValues = [];
+  try {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+    existingValues = res.data.values || [];
+  } catch (readErr) {
+    console.warn("Could not read Recordings tab:", readErr.message);
+  }
+
+  const headers = [
+    "S.No",
+    "Class Date",
+    "Class Name",
+    "Subject",
+    "Class Code",
+    "Meet Link",
+    "Drive Recording Link",
+    "Status",
+    "Last Synced",
+  ];
+
+  if (existingValues.length === 0 || !existingValues[0] || existingValues[0].length === 0) {
+    existingValues = [headers];
+  }
+
+  // Map existing rows by Class Code or Meet Link (Col 4 is Class Code, Col 5 is Meet Link)
+  const rows = [...existingValues];
+
+  for (const c of classList) {
+    const classCode = String(c.classCode || "").trim();
+    const meetLink = String(c.meetLink || "").trim();
+    const recordingUrl = String(c.recordingUrl || "").trim();
+    const classDate = c.classDate || (c.createdAt ? new Date(c.createdAt).toLocaleDateString("en-IN") : "-");
+    const className = c.className || "Class";
+    const subject = c.subject || "-";
+    const status = recordingUrl ? "Recorded" : (c.autoRecord ? "Pending / Processing" : "Not Recorded");
+    const lastSynced = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+
+    // Look for existing row (skip header at index 0)
+    let rowIndex = rows.findIndex((r, idx) => {
+      if (idx === 0) return false;
+      const rowCode = String(r[4] || "").trim();
+      const rowMeet = String(r[5] || "").trim();
+      return (classCode && rowCode === classCode) || (meetLink && rowMeet === meetLink);
+    });
+
+    if (rowIndex > 0) {
+      // Update existing row
+      rows[rowIndex][1] = classDate;
+      rows[rowIndex][2] = className;
+      rows[rowIndex][3] = subject;
+      rows[rowIndex][4] = classCode;
+      rows[rowIndex][5] = meetLink;
+      if (recordingUrl) {
+        rows[rowIndex][6] = recordingUrl;
+        rows[rowIndex][7] = "Recorded";
+      }
+      rows[rowIndex][8] = lastSynced;
+    } else {
+      // Append new row
+      const nextSNo = rows.length;
+      rows.push([
+        nextSNo,
+        classDate,
+        className,
+        subject,
+        classCode,
+        meetLink,
+        recordingUrl || "-",
+        status,
+        lastSynced,
+      ]);
+    }
+  }
+
+  // 3. Write rows back to "Recordings" tab
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'Recordings'!A1:I${rows.length}`,
+    valueInputOption: "USER_ENTERED",
+    resource: { values: rows },
+  });
+
+  // 4. Apply clean header formatting and freeze if sheet was freshly created
+  if (recordingsSheetId !== null) {
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [
+            {
+              updateSheetProperties: {
+                properties: {
+                  sheetId: recordingsSheetId,
+                  gridProperties: { frozenRowCount: 1 },
+                },
+                fields: "gridProperties.frozenRowCount",
+              },
+            },
+            {
+              repeatCell: {
+                range: {
+                  sheetId: recordingsSheetId,
+                  startRowIndex: 0,
+                  endRowIndex: 1,
+                },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0.15, green: 0.15, blue: 0.28 },
+                    textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                    horizontalAlignment: "CENTER",
+                  },
+                },
+                fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+              },
+            },
+          ],
+        },
+      });
+    } catch (styleErr) {
+      // non-critical
+    }
+  }
+
+  return {
+    spreadsheetId,
+    sheetUrl: `${getSheetUrl(spreadsheetId)}#gid=${recordingsSheetId || 0}`,
+    syncedCount: classList.length,
+  };
+};

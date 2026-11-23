@@ -68,10 +68,12 @@ export const createClass = async (req, res) => {
 
     // Determine Meet Link: Use custom link if provided, else auto-generate via Google Calendar if connected
     let finalMeetLink = customMeetLink || "";
+    let recordingWarning = null;
+    let actualAutoRecord = false;
 
     if (!finalMeetLink && req.user.googleAccessToken) {
       try {
-        finalMeetLink = await createMeetLink(
+        const meetResult = await createMeetLink(
           req.user,
           `${className} - ${subject}`,
           startDateTime,
@@ -83,6 +85,14 @@ export const createClass = async (req, res) => {
             guests: Array.isArray(invitedGuests) ? invitedGuests : [],
           }
         );
+
+        if (typeof meetResult === "object" && meetResult !== null) {
+          finalMeetLink = meetResult.meetLink;
+          recordingWarning = meetResult.recordingWarning;
+          actualAutoRecord = !!meetResult.autoRecordSuccess;
+        } else {
+          finalMeetLink = meetResult;
+        }
       } catch (calendarErr) {
         console.error("Google Calendar Meet link creation failed:", calendarErr.message);
         if (`${calendarErr.message}`.toLowerCase().includes("invalid_grant")) {
@@ -124,12 +134,15 @@ export const createClass = async (req, res) => {
       endTime: endTime || "",
       expiresAt: endDateTime,
       accessType: accessType || "open",
-      autoRecord: !!autoRecord,
+      autoRecord: !!actualAutoRecord,
       invitedGuests: Array.isArray(invitedGuests) ? invitedGuests : [],
       teacher: req.user._id
     });
 
-    res.status(201).json(newClass);
+    res.status(201).json({
+      ...newClass.toObject(),
+      recordingWarning: recordingWarning || (autoRecord && !actualAutoRecord ? "Auto-recording could not be enabled: You do not have a Google Workspace Pro or Education account." : null),
+    });
 
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -227,11 +240,12 @@ export const updateClass = async (req, res) => {
     }
 
     // Handle Google Meet Link regeneration if requested
+    let updateRecordingWarning = null;
     if (regenerateMeet && req.user.googleAccessToken) {
       try {
         const start = startDateTime || new Date();
         const end = endDateTime || classDoc.expiresAt || new Date(Date.now() + 60 * 60 * 1000);
-        const generatedMeet = await createMeetLink(
+        const meetResult = await createMeetLink(
           req.user,
           `${classDoc.className} - ${classDoc.subject}`,
           start,
@@ -243,8 +257,12 @@ export const updateClass = async (req, res) => {
             guests: classDoc.invitedGuests || [],
           }
         );
-        if (generatedMeet) {
-          classDoc.meetLink = generatedMeet;
+        if (typeof meetResult === "object" && meetResult !== null) {
+          if (meetResult.meetLink) classDoc.meetLink = meetResult.meetLink;
+          updateRecordingWarning = meetResult.recordingWarning;
+          classDoc.autoRecord = !!meetResult.autoRecordSuccess;
+        } else if (meetResult) {
+          classDoc.meetLink = meetResult;
         }
       } catch (calErr) {
         console.error("Failed to regenerate Google Meet link:", calErr.message);
@@ -266,7 +284,11 @@ export const updateClass = async (req, res) => {
 
     await classDoc.save();
 
-    res.json({ message: "Class updated successfully", class: classDoc });
+    res.json({
+      message: "Class updated successfully",
+      class: classDoc,
+      recordingWarning: updateRecordingWarning || (classDoc.autoRecord ? null : null),
+    });
 
   } catch (error) {
     res.status(500).json({ message: error.message });
