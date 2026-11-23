@@ -116,7 +116,6 @@ function BranchDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "monthly" | "students" | "branches"
-  const [activeMonthIndex, setActiveMonthIndex] = useState(null);
   
   // Student filter controls
   const [studentSearch, setStudentSearch] = useState("");
@@ -648,13 +647,7 @@ function BranchDashboard() {
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart
                     data={data.monthlyStats}
-                    margin={{ top: 32, right: 15, left: -20, bottom: 5 }}
-                    onMouseMove={(state) => {
-                      if (state && state.activeTooltipIndex !== undefined) {
-                        setActiveMonthIndex(state.activeTooltipIndex);
-                      }
-                    }}
-                    onMouseLeave={() => setActiveMonthIndex(null)}
+                    margin={{ top: 20, right: 15, left: -20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
                     <XAxis
@@ -672,103 +665,21 @@ function BranchDashboard() {
                       allowDecimals={false}
                     />
                     <Tooltip
-                      cursor={{ fill: "rgba(99, 102, 241, 0.08)", radius: 12 }}
+                      cursor={false}
                       content={<CustomMonthlyTooltip />}
                     />
                     <Bar
                       dataKey="totalJoinings"
                       name="Total Attendances"
                       fill="#6366f1"
-                      radius={[8, 8, 0, 0]}
-                    >
-                      {data.monthlyStats.map((entry, index) => (
-                        <Cell
-                          key={`joinings-${index}`}
-                          fill={activeMonthIndex === index ? "#818cf8" : "#6366f1"}
-                          fillOpacity={activeMonthIndex === null || activeMonthIndex === index ? 1 : 0.45}
-                        />
-                      ))}
-                      <LabelList
-                        dataKey="totalJoinings"
-                        position="top"
-                        content={(props) => {
-                          const { x, y, width, value, index } = props;
-                          if (activeMonthIndex !== index || value === undefined || value === null) return null;
-                          return (
-                            <g>
-                              <rect
-                                x={x + width / 2 - 16}
-                                y={y - 26}
-                                width={32}
-                                height={20}
-                                rx={6}
-                                fill="#090d16"
-                                stroke="#818cf8"
-                                strokeWidth={1.5}
-                                filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.5))"
-                              />
-                              <text
-                                x={x + width / 2}
-                                y={y - 12}
-                                fill="#ffffff"
-                                textAnchor="middle"
-                                fontSize={11}
-                                fontWeight={800}
-                              >
-                                {value}
-                              </text>
-                            </g>
-                          );
-                        }}
-                      />
-                    </Bar>
+                      radius={[6, 6, 0, 0]}
+                    />
                     <Bar
                       dataKey="classesCount"
                       name="Classes Conducted"
                       fill="#22c55e"
-                      radius={[8, 8, 0, 0]}
-                    >
-                      {data.monthlyStats.map((entry, index) => (
-                        <Cell
-                          key={`classes-${index}`}
-                          fill={activeMonthIndex === index ? "#34d399" : "#22c55e"}
-                          fillOpacity={activeMonthIndex === null || activeMonthIndex === index ? 1 : 0.45}
-                        />
-                      ))}
-                      <LabelList
-                        dataKey="classesCount"
-                        position="top"
-                        content={(props) => {
-                          const { x, y, width, value, index } = props;
-                          if (activeMonthIndex !== index || value === undefined || value === null) return null;
-                          return (
-                            <g>
-                              <rect
-                                x={x + width / 2 - 16}
-                                y={y - 26}
-                                width={32}
-                                height={20}
-                                rx={6}
-                                fill="#090d16"
-                                stroke="#34d399"
-                                strokeWidth={1.5}
-                                filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.5))"
-                              />
-                              <text
-                                x={x + width / 2}
-                                y={y - 12}
-                                fill="#ffffff"
-                                textAnchor="middle"
-                                fontSize={11}
-                                fontWeight={800}
-                              >
-                                {value}
-                              </text>
-                            </g>
-                          );
-                        }}
-                      />
-                    </Bar>
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
