@@ -25,7 +25,19 @@ export const parseISTDateTime = (dateStr, timeStr) => {
 
 export const createClass = async (req, res) => {
   try {
-    const { className, subject, classDate, startTime, endTime, meetLink: customMeetLink, expiresAt, branchId, accessType } = req.body;
+    const {
+      className,
+      subject,
+      classDate,
+      startTime,
+      endTime,
+      meetLink: customMeetLink,
+      expiresAt,
+      branchId,
+      accessType,
+      autoRecord,
+      invitedGuests,
+    } = req.body;
 
     if (!className || !subject || !branchId) {
       return res.status(400).json({ message: "Class name, subject, and branch are required" });
@@ -65,7 +77,11 @@ export const createClass = async (req, res) => {
           startDateTime,
           endDateTime,
           `Branch: ${branch.name}`,
-          accessType || "open"
+          accessType || "open",
+          {
+            autoRecord: !!autoRecord,
+            guests: Array.isArray(invitedGuests) ? invitedGuests : [],
+          }
         );
       } catch (calendarErr) {
         console.error("Google Calendar Meet link creation failed:", calendarErr.message);
@@ -108,6 +124,8 @@ export const createClass = async (req, res) => {
       endTime: endTime || "",
       expiresAt: endDateTime,
       accessType: accessType || "open",
+      autoRecord: !!autoRecord,
+      invitedGuests: Array.isArray(invitedGuests) ? invitedGuests : [],
       teacher: req.user._id
     });
 
@@ -160,6 +178,8 @@ export const updateClass = async (req, res) => {
       startTime,
       endTime,
       accessType,
+      autoRecord,
+      invitedGuests,
       regenerateMeet
     } = req.body;
 
@@ -187,6 +207,8 @@ export const updateClass = async (req, res) => {
     if (className) classDoc.className = className;
     if (subject) classDoc.subject = subject;
     if (accessType) classDoc.accessType = accessType;
+    if (autoRecord !== undefined) classDoc.autoRecord = !!autoRecord;
+    if (Array.isArray(invitedGuests)) classDoc.invitedGuests = invitedGuests;
 
     // Handle Timings in IST (+05:30)
     let startDateTime = null;
@@ -215,7 +237,11 @@ export const updateClass = async (req, res) => {
           start,
           end,
           "Updated Class Session",
-          classDoc.accessType || "open"
+          classDoc.accessType || "open",
+          {
+            autoRecord: classDoc.autoRecord,
+            guests: classDoc.invitedGuests || [],
+          }
         );
         if (generatedMeet) {
           classDoc.meetLink = generatedMeet;

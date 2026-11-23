@@ -306,7 +306,10 @@ export const exportClassAttendanceToSheet = async (
     "Group",
     "College",
     "Date",
-    "Time",
+    "Join Time",
+    "Left Call At",
+    "Duration (mins)",
+    "Exit Status",
     "Status",
   ];
 
@@ -320,6 +323,11 @@ export const exportClassAttendanceToSheet = async (
     const timeStr = record.createdAt
       ? new Date(record.createdAt).toLocaleTimeString()
       : "";
+    const leftAtStr = record.leftAt
+      ? new Date(record.leftAt).toLocaleTimeString()
+      : "-";
+    const durationMins = record.durationMins || 0;
+    const exitStatus = record.exitStatus || "unknown";
 
     rows.push([
       index + 1,
@@ -329,6 +337,9 @@ export const exportClassAttendanceToSheet = async (
       record.student.college || "",
       dateStr,
       timeStr,
+      leftAtStr,
+      durationMins,
+      exitStatus,
       "PRESENT",
     ]);
   });

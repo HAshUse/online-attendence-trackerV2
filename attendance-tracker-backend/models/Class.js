@@ -62,7 +62,45 @@ const classSchema = new mongoose.Schema(
       type: String,
       enum: ["open", "restricted"],
       default: "open"
-    }
+    },
+
+    autoRecord: {
+      type: Boolean,
+      default: false
+    },
+
+    recordingUrl: {
+      type: String,
+      default: ""
+    },
+
+    recordingFileId: {
+      type: String,
+      default: ""
+    },
+
+    invitedGuests: [
+      {
+        email: {
+          type: String,
+          trim: true,
+          lowercase: true
+        },
+        displayName: {
+          type: String,
+          default: ""
+        },
+        role: {
+          type: String,
+          enum: ["GUEST", "COHOST"],
+          default: "GUEST"
+        },
+        responseStatus: {
+          type: String,
+          default: "needsAction"
+        }
+      }
+    ]
   },
   { timestamps: true }
 );
