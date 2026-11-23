@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ChevronRight, ArrowLeft } from "lucide-react";
+import {
+  ChevronRight,
+  ArrowLeft,
+  TrendingUp,
+  Building2,
+  BookOpen,
+  Users,
+  Zap,
+  Flame,
+  Calendar,
+  Layers,
+  Sparkles,
+  GraduationCap,
+  BarChart3,
+} from "lucide-react";
 import API from "../services/api";
 import {
   PieChart,
@@ -8,16 +22,92 @@ import {
   Cell,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   BarChart,
   Bar,
+  LabelList,
 } from "recharts";
 
 const COLORS = ["#6366f1", "#22c55e", "#f97316", "#ef4444", "#14b8a6", "#eab308", "#8b5cf6", "#ec4899"];
+
+/* Custom Tooltip for Daily Attendance Area Chart */
+function CustomTrendTooltip({ active, payload, label }) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[var(--card)] border border-[var(--border)] p-3 rounded-xl shadow-2xl backdrop-blur-md">
+        <p className="text-[11px] font-semibold text-[var(--subtext)] mb-1 flex items-center gap-1.5">
+          <Calendar className="w-3 h-3 text-[var(--primary)]" />
+          <span>{label}</span>
+        </p>
+        <p className="text-xs sm:text-sm font-extrabold text-[var(--text)] m-0 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+          <span>Attendances:</span>
+          <span className="text-indigo-400 font-black">{payload[0].value}</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+}
+
+/* Custom Tooltip for College Donut Chart */
+function CustomPieTooltip({ active, payload, total }) {
+  if (active && payload && payload.length) {
+    const d = payload[0];
+    const pct = total ? ((d.value / total) * 100).toFixed(1) : 0;
+    return (
+      <div className="bg-[var(--card)] border border-[var(--border)] p-3 rounded-xl shadow-2xl backdrop-blur-md min-w-[150px]">
+        <p className="text-xs font-bold text-[var(--text)] mb-1.5 truncate border-b border-[var(--border)] pb-1">
+          {d.name}
+        </p>
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span className="text-[var(--subtext)]">Enrolled:</span>
+          <span className="font-extrabold text-[var(--text)]">{d.value}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 text-xs mt-1">
+          <span className="text-[var(--subtext)]">Share:</span>
+          <span className="font-extrabold text-emerald-400">{pct}%</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+/* Custom Tooltip for Month-wise Bar Chart */
+function CustomMonthlyTooltip({ active, payload, label }) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[var(--card)] border border-[var(--border)] p-3.5 rounded-2xl shadow-2xl backdrop-blur-md min-w-[180px]">
+        <p className="text-xs font-bold text-[var(--text)] mb-2.5 flex items-center gap-1.5 border-b border-[var(--border)] pb-2">
+          <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+          <span>{label}</span>
+        </p>
+        <div className="space-y-2">
+          {payload.map((entry, idx) => (
+            <div key={idx} className="flex items-center justify-between text-xs gap-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="text-[var(--subtext)]">{entry.name}:</span>
+              </div>
+              <span className="font-extrabold text-[var(--text)] text-sm">
+                {entry.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
 
 function BranchDashboard() {
   const { branchId } = useParams();
@@ -26,6 +116,7 @@ function BranchDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "monthly" | "students" | "branches"
+  const [activeMonthIndex, setActiveMonthIndex] = useState(null);
   
   // Student filter controls
   const [studentSearch, setStudentSearch] = useState("");
@@ -156,39 +247,39 @@ function BranchDashboard() {
 
       {/* TOP STATS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-6">
-        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 bg-indigo-500/15 text-indigo-500">
-            📚
+        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5 hover:border-[var(--border-focus)] transition-all">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-indigo-500/15 border border-indigo-500/25 text-indigo-400">
+            <BookOpen className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-[11px] font-bold text-[var(--subtext)] uppercase tracking-wider mb-0.5">Classes</h3>
-            <p className="text-xl font-extrabold text-[var(--text)] m-0">{data.totalClasses}</p>
+            <p className="text-xl font-black text-[var(--text)] m-0">{data.totalClasses}</p>
           </div>
         </div>
 
-        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 bg-emerald-500/15 text-emerald-500">
-            👥
+        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5 hover:border-[var(--border-focus)] transition-all">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/15 border border-emerald-500/25 text-emerald-400">
+            <Users className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-[11px] font-bold text-[var(--subtext)] uppercase tracking-wider mb-0.5">Students</h3>
-            <p className="text-xl font-extrabold text-[var(--text)] m-0">{data.totalStudents}</p>
+            <p className="text-xl font-black text-[var(--text)] m-0">{data.totalStudents}</p>
           </div>
         </div>
 
-        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 bg-amber-500/15 text-amber-500">
-            ⚡
+        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5 hover:border-[var(--border-focus)] transition-all">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/15 border border-amber-500/25 text-amber-400">
+            <Zap className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-[11px] font-bold text-[var(--subtext)] uppercase tracking-wider mb-0.5">Attendances</h3>
-            <p className="text-xl font-extrabold text-[var(--text)] m-0">{data.totalJoinings}</p>
+            <p className="text-xl font-black text-[var(--text)] m-0">{data.totalJoinings}</p>
           </div>
         </div>
 
-        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 bg-pink-500/15 text-pink-500">
-            🏛️
+        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5 hover:border-[var(--border-focus)] transition-all">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-cyan-500/15 border border-cyan-500/25 text-cyan-400">
+            <Building2 className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-[11px] font-bold text-[var(--subtext)] uppercase tracking-wider mb-0.5">Top College</h3>
@@ -196,9 +287,9 @@ function BranchDashboard() {
           </div>
         </div>
 
-        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 bg-purple-500/15 text-purple-500">
-            🔥
+        <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-4 shadow-sm flex items-center gap-3.5 hover:border-[var(--border-focus)] transition-all">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-purple-500/15 border border-purple-500/25 text-purple-400">
+            <Flame className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-[11px] font-bold text-[var(--subtext)] uppercase tracking-wider mb-0.5">Active Class</h3>
@@ -257,101 +348,231 @@ function BranchDashboard() {
       {/* ================= TAB 1: OVERVIEW & TRENDS ================= */}
       {activeTab === "overview" && (
         <div className="flex flex-col gap-6 animate-[fadeIn_0.2s_ease-out]">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* DAILY LINE CHART */}
-            <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-5 shadow-sm lg:col-span-2">
-              <h3 className="text-sm sm:text-base font-bold text-[var(--text)] mb-4">📈 Daily Attendance Trend</h3>
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+            {/* DAILY ATTENDANCE AREA CHART */}
+            <div className="bg-[var(--card)] rounded-3xl border border-[var(--border)] p-5 sm:p-6 shadow-sm xl:col-span-7 flex flex-col justify-between hover:border-[var(--border-focus)]/50 transition-all">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-extrabold text-[var(--text)] m-0 tracking-tight">
+                      Daily Attendance Velocity
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-[var(--subtext)] m-0 mt-0.5">
+                      Session-by-session student check-ins over time
+                    </p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 border border-indigo-500/25 text-indigo-400">
+                  {data.totalJoinings} Total Joins
+                </span>
+              </div>
+
               {!hasDailyData ? (
-                <p className="py-12 text-center text-[var(--subtext)] text-sm">No daily trend data available</p>
+                <div className="py-20 text-center text-[var(--subtext)] text-sm flex flex-col items-center gap-2">
+                  <TrendingUp className="w-8 h-8 opacity-40 text-indigo-400" />
+                  <p>No daily attendance activity recorded yet</p>
+                </div>
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={data.dailyTrend}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.6} />
-                    <XAxis dataKey="date" stroke="var(--subtext)" fontSize={11} />
-                    <YAxis stroke="var(--subtext)" fontSize={11} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--card)",
-                        borderColor: "var(--border)",
-                        color: "var(--text)",
-                        borderRadius: "10px",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="joins"
-                      name="Attendances"
-                      stroke="#6366f1"
-                      strokeWidth={3}
-                      dot={{ fill: "#6366f1", r: 4 }}
-                      activeDot={{ r: 7 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="w-full flex-1 flex items-end pt-2">
+                  <ResponsiveContainer width="100%" height={290}>
+                    <AreaChart data={data.dailyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="attendanceGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        stroke="var(--subtext)"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
+                      />
+                      <YAxis
+                        stroke="var(--subtext)"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        allowDecimals={false}
+                      />
+                      <Tooltip content={<CustomTrendTooltip />} />
+                      <Area
+                        type="monotone"
+                        dataKey="joins"
+                        name="Attendances"
+                        stroke="#818cf8"
+                        strokeWidth={3}
+                        fillOpacity={1}
+                        fill="url(#attendanceGradient)"
+                        dot={{ fill: "#0f172a", stroke: "#818cf8", strokeWidth: 2, r: 4 }}
+                        activeDot={{ fill: "#6366f1", stroke: "#ffffff", strokeWidth: 2, r: 6 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </div>
 
-            {/* COLLEGE PIE CHART */}
-            <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-5 shadow-sm lg:col-span-1">
-              <h3 className="text-sm sm:text-base font-bold text-[var(--text)] mb-4">🏛️ Student College Share</h3>
+            {/* COLLEGE DONUT & BREAKDOWN */}
+            <div className="bg-[var(--card)] rounded-3xl border border-[var(--border)] p-5 sm:p-6 shadow-sm xl:col-span-5 flex flex-col justify-between hover:border-[var(--border-focus)]/50 transition-all">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-extrabold text-[var(--text)] m-0 tracking-tight">
+                      Student College Share
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-[var(--subtext)] m-0 mt-0.5">
+                      Representation across enrolled colleges
+                    </p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 border border-amber-500/25 text-amber-400">
+                  {data.collegeStats.length} {data.collegeStats.length === 1 ? "College" : "Colleges"}
+                </span>
+              </div>
+
               {!hasCollegeData ? (
-                <p className="py-12 text-center text-[var(--subtext)] text-sm">No college data available</p>
+                <div className="py-20 text-center text-[var(--subtext)] text-sm flex flex-col items-center gap-2">
+                  <Building2 className="w-8 h-8 opacity-40 text-amber-400" />
+                  <p>No college distribution data available</p>
+                </div>
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
-                    <Pie
-                      data={data.collegeStats}
-                      dataKey="students"
-                      nameKey="college"
-                      outerRadius={95}
-                      innerRadius={45}
-                      paddingAngle={3}
-                      label={({ name, percent }) =>
-                        `${name ? name.slice(0, 8) : "Other"} ${(percent * 100).toFixed(0)}%`
-                      }
-                    >
-                      {data.collegeStats.map((entry, index) => (
-                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--card)",
-                        borderColor: "var(--border)",
-                        color: "var(--text)",
-                        borderRadius: "10px",
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="flex flex-col gap-4 flex-1 justify-between">
+                  {/* Clean Donut with Centered KPI */}
+                  <div className="relative w-full h-[185px] flex items-center justify-center">
+                    <ResponsiveContainer width="100%" height={185}>
+                      <PieChart>
+                        <Pie
+                          data={data.collegeStats}
+                          dataKey="students"
+                          nameKey="college"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={56}
+                          outerRadius={78}
+                          paddingAngle={data.collegeStats.length > 1 ? 4 : 0}
+                          stroke="var(--card)"
+                          strokeWidth={3}
+                        >
+                          {data.collegeStats.map((entry, index) => (
+                            <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<CustomPieTooltip total={totalCollegeStudents} />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    {/* Centered Metric in Donut Hole */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-2xl font-black text-[var(--text)] tracking-tight leading-none">
+                        {totalCollegeStudents}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--subtext)] mt-1">
+                        Students
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Integrated College Breakdown Cards */}
+                  <div className="space-y-2 max-h-[145px] overflow-y-auto pr-1">
+                    {data.collegeStats.map((item, idx) => {
+                      const color = COLORS[idx % COLORS.length];
+                      const pct = ((item.students / totalCollegeStudents) * 100).toFixed(0);
+                      return (
+                        <div
+                          key={idx}
+                          className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-indigo-500/30 transition-all flex items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span
+                              className="w-3 h-3 rounded-full shrink-0 shadow-sm"
+                              style={{ backgroundColor: color }}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-[var(--text)] truncate m-0" title={item.college}>
+                                {item.college}
+                              </p>
+                              {/* Inline mini progress bar */}
+                              <div className="w-full bg-[var(--bg)] h-1 rounded-full mt-1 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%`, backgroundColor: color }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-extrabold text-[var(--text)]">
+                              {item.students}
+                            </span>
+                            <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                              {pct}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           </div>
 
           {/* COLLEGE BREAKDOWN TABLE */}
-          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[var(--text)] m-0">🏛️ College Distribution Summary</h3>
-              <span className="text-xs text-[var(--subtext)]">{data.collegeStats.length} colleges</span>
+          <div className="bg-[var(--card)] rounded-3xl border border-[var(--border)] shadow-sm overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-[var(--border)] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Building2 className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm sm:text-base font-bold text-[var(--text)] m-0">
+                  College Distribution Summary
+                </h3>
+              </div>
+              <span className="text-xs font-semibold text-[var(--subtext)] bg-[var(--bg-secondary)] px-2.5 py-1 rounded-full border border-[var(--border)]">
+                {data.collegeStats.length} colleges enrolled
+              </span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse min-w-[500px]">
                 <thead>
                   <tr className="border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-                    <th className="py-2.5 px-4 text-xs font-bold text-[var(--subtext)] text-left">College</th>
-                    <th className="py-2.5 px-4 text-xs font-bold text-[var(--subtext)] text-right">Unique Students</th>
-                    <th className="py-2.5 px-4 text-xs font-bold text-[var(--subtext)] text-right">Share</th>
+                    <th className="py-3 px-5 text-xs font-bold text-[var(--subtext)] text-left uppercase tracking-wider">
+                      College / Institution
+                    </th>
+                    <th className="py-3 px-5 text-xs font-bold text-[var(--subtext)] text-right uppercase tracking-wider">
+                      Unique Students
+                    </th>
+                    <th className="py-3 px-5 text-xs font-bold text-[var(--subtext)] text-right uppercase tracking-wider">
+                      Branch Share
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
                   {data.collegeStats.map((item, idx) => {
                     const percent = ((item.students / totalCollegeStudents) * 100).toFixed(1);
+                    const color = COLORS[idx % COLORS.length];
                     return (
                       <tr key={idx} className="hover:bg-[var(--card-hover)] transition-colors">
-                        <td className="py-2.5 px-4 text-xs sm:text-sm font-medium text-[var(--text)]">{item.college}</td>
-                        <td className="py-2.5 px-4 text-xs sm:text-sm font-bold text-right text-[var(--text)]">{item.students}</td>
-                        <td className="py-2.5 px-4 text-xs sm:text-sm text-right text-[var(--subtext)]">{percent}%</td>
+                        <td className="py-3.5 px-5 text-xs sm:text-sm font-semibold text-[var(--text)]">
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                            <span>{item.college}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-5 text-xs sm:text-sm font-extrabold text-right text-[var(--text)]">
+                          {item.students}
+                        </td>
+                        <td className="py-3.5 px-5 text-xs sm:text-sm text-right">
+                          <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                            {percent}%
+                          </span>
+                        </td>
                       </tr>
                     );
                   })}
@@ -388,30 +609,169 @@ function BranchDashboard() {
           </div>
 
           {/* MONTHLY COMPARISON BAR CHART */}
-          <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-5 shadow-sm">
-            <h3 className="text-sm sm:text-base font-bold text-[var(--text)] mb-4">
-              📊 Month-over-Month Attendances & Classes
-            </h3>
+          <div className="bg-[var(--card)] rounded-3xl border border-[var(--border)] p-5 sm:p-6 shadow-sm hover:border-[var(--border-focus)]/50 transition-all">
+            <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-[var(--text)] m-0 tracking-tight">
+                    Month-over-Month Attendances & Classes
+                  </h3>
+                  <p className="text-[11px] sm:text-xs text-[var(--subtext)] m-0 mt-0.5">
+                    Hover on any month to inspect exact attendance counts and session volumes
+                  </p>
+                </div>
+              </div>
+
+              {/* Chart Legend with pills */}
+              <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-semibold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#6366f1]" />
+                  <span>Total Attendances</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e]" />
+                  <span>Classes Conducted</span>
+                </div>
+              </div>
+            </div>
+
             {!hasMonthlyData ? (
-              <p className="py-12 text-center text-[var(--subtext)] text-sm">No monthly data recorded yet</p>
+              <div className="py-20 text-center text-[var(--subtext)] text-sm flex flex-col items-center gap-2">
+                <BarChart3 className="w-8 h-8 opacity-40 text-indigo-400" />
+                <p>No monthly data recorded yet</p>
+              </div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data.monthlyStats}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.6} />
-                  <XAxis dataKey="monthLabel" stroke="var(--subtext)" fontSize={11} />
-                  <YAxis stroke="var(--subtext)" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--card)",
-                      borderColor: "var(--border)",
-                      color: "var(--text)",
-                      borderRadius: "10px",
+              <div className="w-full pt-2">
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart
+                    data={data.monthlyStats}
+                    margin={{ top: 32, right: 15, left: -20, bottom: 5 }}
+                    onMouseMove={(state) => {
+                      if (state && state.activeTooltipIndex !== undefined) {
+                        setActiveMonthIndex(state.activeTooltipIndex);
+                      }
                     }}
-                  />
-                  <Bar dataKey="totalJoinings" name="Total Attendances" fill="#6366f1" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="classesCount" name="Classes Conducted" fill="#22c55e" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+                    onMouseLeave={() => setActiveMonthIndex(null)}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                    <XAxis
+                      dataKey="monthLabel"
+                      stroke="var(--subtext)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
+                    />
+                    <YAxis
+                      stroke="var(--subtext)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(99, 102, 241, 0.08)", radius: 12 }}
+                      content={<CustomMonthlyTooltip />}
+                    />
+                    <Bar
+                      dataKey="totalJoinings"
+                      name="Total Attendances"
+                      fill="#6366f1"
+                      radius={[8, 8, 0, 0]}
+                    >
+                      {data.monthlyStats.map((entry, index) => (
+                        <Cell
+                          key={`joinings-${index}`}
+                          fill={activeMonthIndex === index ? "#818cf8" : "#6366f1"}
+                          fillOpacity={activeMonthIndex === null || activeMonthIndex === index ? 1 : 0.45}
+                        />
+                      ))}
+                      <LabelList
+                        dataKey="totalJoinings"
+                        position="top"
+                        content={(props) => {
+                          const { x, y, width, value, index } = props;
+                          if (activeMonthIndex !== index || value === undefined || value === null) return null;
+                          return (
+                            <g>
+                              <rect
+                                x={x + width / 2 - 16}
+                                y={y - 26}
+                                width={32}
+                                height={20}
+                                rx={6}
+                                fill="#090d16"
+                                stroke="#818cf8"
+                                strokeWidth={1.5}
+                                filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.5))"
+                              />
+                              <text
+                                x={x + width / 2}
+                                y={y - 12}
+                                fill="#ffffff"
+                                textAnchor="middle"
+                                fontSize={11}
+                                fontWeight={800}
+                              >
+                                {value}
+                              </text>
+                            </g>
+                          );
+                        }}
+                      />
+                    </Bar>
+                    <Bar
+                      dataKey="classesCount"
+                      name="Classes Conducted"
+                      fill="#22c55e"
+                      radius={[8, 8, 0, 0]}
+                    >
+                      {data.monthlyStats.map((entry, index) => (
+                        <Cell
+                          key={`classes-${index}`}
+                          fill={activeMonthIndex === index ? "#34d399" : "#22c55e"}
+                          fillOpacity={activeMonthIndex === null || activeMonthIndex === index ? 1 : 0.45}
+                        />
+                      ))}
+                      <LabelList
+                        dataKey="classesCount"
+                        position="top"
+                        content={(props) => {
+                          const { x, y, width, value, index } = props;
+                          if (activeMonthIndex !== index || value === undefined || value === null) return null;
+                          return (
+                            <g>
+                              <rect
+                                x={x + width / 2 - 16}
+                                y={y - 26}
+                                width={32}
+                                height={20}
+                                rx={6}
+                                fill="#090d16"
+                                stroke="#34d399"
+                                strokeWidth={1.5}
+                                filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.5))"
+                              />
+                              <text
+                                x={x + width / 2}
+                                y={y - 12}
+                                fill="#ffffff"
+                                textAnchor="middle"
+                                fontSize={11}
+                                fontWeight={800}
+                              >
+                                {value}
+                              </text>
+                            </g>
+                          );
+                        }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </div>
 
