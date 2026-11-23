@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../services/api";
+import Toast from "../components/Toast";
 
 // Convert "HH:MM" (24h) to 12-hour object { hour, minute, period }
 const parse24 = (timeStr) => {
@@ -119,6 +120,11 @@ function EditClass() {
   const [invitedGuests, setInvitedGuests] = useState([]);
   const [guestInput, setGuestInput] = useState("");
   const [guestRole, setGuestRole] = useState("GUEST");
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info", title = "") => {
+    setToast({ message, type, title, id: Date.now() });
+  };
 
   const [form, setForm] = useState({
     className: "",
@@ -136,15 +142,16 @@ function EditClass() {
     if (e) e.preventDefault();
     const email = guestInput.trim().toLowerCase();
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
-      alert("Please enter a valid email address");
+      showToast("Please enter a valid email address.", "warning", "Invalid Email");
       return;
     }
     if (invitedGuests.some((g) => g.email === email)) {
-      alert("This guest is already added");
+      showToast("This guest is already added to the list.", "warning", "Already Added");
       return;
     }
     setInvitedGuests([...invitedGuests, { email, role: guestRole }]);
     setGuestInput("");
+    showToast(`Added ${email} as ${guestRole === "COHOST" ? "Co-host" : "Guest"}.`, "success", "Guest Added");
   };
 
   const handleRemoveGuest = (emailToRemove) => {
@@ -327,7 +334,7 @@ function EditClass() {
   /* ================= REGENERATE MEET ================= */
   const handleRegenerateMeet = async () => {
     if (!googleConnected) {
-      alert("Please connect your Google account from the profile dropdown in the top navbar first!");
+      showToast("Please connect your Google account from the profile dropdown in the top navbar first!", "warning", "Google Account");
       return;
     }
 
@@ -342,10 +349,10 @@ function EditClass() {
 
       if (res.data?.class?.meetLink) {
         setForm((prev) => ({ ...prev, meetLink: res.data.class.meetLink }));
-        alert("✅ Google Meet link successfully generated and attached!");
+        showToast("Google Meet link successfully generated and attached!", "success", "Meet Linked");
       }
     } catch (err) {
-      alert(err.response?.data?.message || err.message || "Failed to regenerate Meet link. Please try again.");
+      showToast(err.response?.data?.message || err.message || "Failed to regenerate Meet link. Please try again.", "error");
     } finally {
       setRegenerating(false);
     }
@@ -363,7 +370,7 @@ function EditClass() {
     const endDateTime = new Date(`${form.classDate}T${form.endTime}:00+05:30`);
 
     if (startDateTime >= endDateTime) {
-      alert("⚠️ Class end time must be after the start time.");
+      showToast("Class end time must be after the start time.", "warning", "Invalid Timing");
       return;
     }
 
@@ -376,10 +383,12 @@ function EditClass() {
         autoRecord,
         invitedGuests
       });
-      alert("✅ Class updated successfully!");
-      navigate(form.branchId ? `/dashboard/${form.branchId}` : "/branches");
+      showToast("Class updated successfully!", "success", "Saved");
+      setTimeout(() => {
+        navigate(form.branchId ? `/dashboard/${form.branchId}` : "/branches");
+      }, 900);
     } catch (err) {
-      alert(err.response?.data?.message || err.message || "Failed to update class. Please try again.");
+      showToast(err.response?.data?.message || err.message || "Failed to update class. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -844,6 +853,16 @@ function EditClass() {
           </div>
         </form>
       </div>
+
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          title={toast.title}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

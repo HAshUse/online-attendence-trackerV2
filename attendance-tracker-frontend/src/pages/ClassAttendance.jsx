@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../services/api";
+import Toast from "../components/Toast";
 
 function ClassAttendance() {
   const { id } = useParams();
@@ -511,27 +512,16 @@ function ClassAttendance() {
         </div>
       )}
 
-      {/* TOAST NOTIFICATION */}
+      {/* TOAST NOTIFICATION CARD */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border animate-[fadeIn_0.2s_ease-out] ${
-          toast.type === "error"
-            ? "bg-red-950/90 border-red-500/30 text-red-200"
-            : "bg-emerald-950/90 border-emerald-500/30 text-emerald-200"
-        }`}>
-          <span className="text-lg">{toast.type === "error" ? "⚠️" : "✅"}</span>
-          <span className="text-xs sm:text-sm font-medium">{toast.message}</span>
-          {toast.actionUrl && (
-            <a
-              href={toast.actionUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="ml-1 px-2.5 py-1 bg-emerald-500/30 hover:bg-emerald-500/50 text-white text-xs font-bold rounded-lg no-underline transition-colors cursor-pointer"
-            >
-              Open Sheet ↗
-            </a>
-          )}
-          <button onClick={() => setToast(null)} className="ml-2 text-gray-400 hover:text-white cursor-pointer bg-transparent border-0">✕</button>
-        </div>
+        <Toast
+          key={toast.message + (toast.type || "")}
+          message={toast.message}
+          type={toast.type || "info"}
+          actionUrl={toast.actionUrl}
+          actionLabel="Open Sheet ↗"
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

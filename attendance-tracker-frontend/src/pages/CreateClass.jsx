@@ -1,6 +1,7 @@
 import { useState } from "react";
 import API from "../services/api";
 import { useNavigate, useParams } from "react-router-dom";
+import Toast from "../components/Toast";
 
 // Convert "HH:MM" (24h) to 12-hour object { hour, minute, period }
 const parse24 = (timeStr) => {
@@ -147,6 +148,11 @@ function CreateClass() {
   const [invitedGuests, setInvitedGuests] = useState([]);
   const [guestInput, setGuestInput] = useState("");
   const [guestRole, setGuestRole] = useState("GUEST");
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info", title = "") => {
+    setToast({ message, type, title, id: Date.now() });
+  };
 
   const [form, setForm] = useState({
     className: "",
@@ -162,15 +168,16 @@ function CreateClass() {
     if (e) e.preventDefault();
     const email = guestInput.trim().toLowerCase();
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
-      alert("Please enter a valid email address");
+      showToast("Please enter a valid email address.", "warning", "Invalid Email");
       return;
     }
     if (invitedGuests.some((g) => g.email === email)) {
-      alert("This guest is already added");
+      showToast("This guest is already added to the list.", "warning", "Already Added");
       return;
     }
     setInvitedGuests([...invitedGuests, { email, role: guestRole }]);
     setGuestInput("");
+    showToast(`Added ${email} as ${guestRole === "COHOST" ? "Co-host" : "Guest"}.`, "success", "Guest Added");
   };
 
   const handleRemoveGuest = (emailToRemove) => {
@@ -255,7 +262,7 @@ function CreateClass() {
     e.preventDefault();
 
     if (meetMode === "custom" && !form.meetLink.trim()) {
-      alert("⚠️ Please enter your custom meeting link or switch to Auto-generate.");
+      showToast("Please enter your custom meeting link or switch to Auto-generate.", "warning", "Missing Link");
       return;
     }
 
@@ -263,12 +270,12 @@ function CreateClass() {
     const endDateTime = new Date(`${form.classDate}T${form.endTime}:00+05:30`);
 
     if (endDateTime <= new Date()) {
-      alert("⚠️ The class end time has already passed! Please select a future time or date.");
+      showToast("The class end time has already passed! Please select a future time or date.", "warning", "Time Expired");
       return;
     }
 
     if (startDateTime >= endDateTime) {
-      alert("⚠️ Class end time must be after the start time.");
+      showToast("Class end time must be after the start time.", "warning", "Invalid Timing");
       return;
     }
 
@@ -284,10 +291,12 @@ function CreateClass() {
         branchId,
       });
 
-      alert("✅ Class scheduled successfully!");
-      navigate(`/dashboard/${branchId}`);
+      showToast("Class scheduled successfully!", "success", "Scheduled");
+      setTimeout(() => {
+        navigate(`/dashboard/${branchId}`);
+      }, 900);
     } catch (err) {
-      alert(err.response?.data?.message || err.message || "Failed to create class. Please try again.");
+      showToast(err.response?.data?.message || err.message || "Failed to create class. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -651,6 +660,16 @@ function CreateClass() {
           </button>
         </form>
       </div>
+
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          title={toast.title}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
