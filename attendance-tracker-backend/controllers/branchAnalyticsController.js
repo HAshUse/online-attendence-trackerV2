@@ -1,249 +1,269 @@
-// import Class from "../models/Class.js";
-// import Attendance from "../models/Attendance.js";
-// import mongoose from "mongoose";
-// import Branch from "../models/Branch.js";
- 
-
-// export const getBranchAnalytics = async (req, res) => {
-//   try {
-//     const { branchId } = req.params;
-//     const teacherId = req.user._id;
-
-//     /* ================= GET CLASSES ================= */
-
-//     const classes = await Class.find({
-//       branch: branchId,
-//       teacher: teacherId
-//     });
-
-//     const classIds = classes.map(c => c._id);
-
-//     /* ================= ATTENDANCE ================= */
-
-//     const attendance = await Attendance.find({
-//       class: { $in: classIds }
-//     }).populate("student", "college");
-
-//     const uniqueStudents = new Set();
-//     const collegeMap = {};
-//     const classJoinCount = {};
-//     const dailyTrend = {};
-
-//     attendance.forEach(a => {
-
-//       // unique students
-//       uniqueStudents.add(a.student._id.toString());
-
-//       // college stats
-//       const college = a.student?.college || "Unknown";
-//       collegeMap[college] = (collegeMap[college] || 0) + 1;
-
-//       // class activity
-//       const classId = a.class.toString();
-//       classJoinCount[classId] = (classJoinCount[classId] || 0) + 1;
-
-//       // daily trend
-//       const day = a.createdAt.toISOString().split("T")[0];
-//       dailyTrend[day] = (dailyTrend[day] || 0) + 1;
-//     });
-
-//     /* ================= TOP COLLEGE ================= */
-
-//     let topCollege = null;
-//     let max = 0;
-
-//     for (const c in collegeMap) {
-//       if (collegeMap[c] > max) {
-//         max = collegeMap[c];
-//         topCollege = c;
-//       }
-//     }
-
-//     /* ================= MOST ACTIVE CLASS ================= */
-
-//     let activeClassId = null;
-//     let activeMax = 0;
-
-//     for (const cid in classJoinCount) {
-//       if (classJoinCount[cid] > activeMax) {
-//         activeMax = classJoinCount[cid];
-//         activeClassId = cid;
-//       }
-//     }
-
-//     const activeClass = classes.find(c => c._id.toString() === activeClassId);
-
-//     /* ================= FORMAT COLLEGE PIE ================= */
-
-//     const collegeStats = Object.keys(collegeMap).map(college => ({
-//       college,
-//       students: collegeMap[college]
-//     }));
-
-//     /* ================= FORMAT DAILY TREND ================= */
-
-//     const trend = Object.keys(dailyTrend)
-//       .sort()
-//       .map(date => ({
-//         date,
-//         joins: dailyTrend[date]
-//       }));
-
-//     /* ================= RESPONSE ================= */
-
-//     res.json({
-//       branchName: classes[0]?.branch.name || "Branch",
-//       totalClasses: classes.length,
-//       totalStudents: uniqueStudents.size,
-//       totalJoinings: attendance.length,
-
-//       collegeStats,
-
-//       topCollege,
-//       mostActiveClass: activeClass?.className || "N/A",
-
-//       dailyTrend: trend
-//     });
-
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Analytics error" });
-//   }
-// };
-
 import Class from "../models/Class.js";
 import Attendance from "../models/Attendance.js";
 import Branch from "../models/Branch.js";
 
+const formatMonthLabel = (yyyyMm) => {
+  if (!yyyyMm || yyyyMm.length < 7) return yyyyMm;
+  const [y, m] = yyyyMm.split("-");
+  const d = new Date(Number(y), Number(m) - 1, 1);
+  return isNaN(d.getTime()) ? yyyyMm : d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+};
+
 export const getBranchAnalytics = async (req, res) => {
   try {
     const { branchId } = req.params;
+    const { month } = req.query; // optional filter e.g. "2026-11"
     const teacherId = req.user._id;
 
-    /* ================= GET BRANCH NAME ================= */
+    /* ================= 1. GET CURRENT BRANCH & ALL TEACHER BRANCHES ================= */
+    const [branch, allTeacherBranches, allTeacherClasses] = await Promise.all([
+      Branch.findById(branchId).select("name year"),
+      Branch.find({ teacher: teacherId }).select("name year"),
+      Class.find({ teacher: teacherId }),
+    ]);
 
-    const branch = await Branch.findById(branchId).select("name");
-
-    /* ================= GET CLASSES ================= */
-
-    const classes = await Class.find({
-      branch: branchId,
-      teacher: teacherId
-    });
-
-    const classIds = classes.map(c => c._id);
-
-    if (classIds.length === 0) {
-      return res.json({
-        branchName: branch?.name || "Branch",
-        totalClasses: 0,
-        totalStudents: 0,
-        totalJoinings: 0,
-        collegeStats: [],
-        topCollege: null,
-        mostActiveClass: null,
-        dailyTrend: []
-      });
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
     }
 
-    /* ================= ATTENDANCE ================= */
+    /* ================= 2. CLASSES FOR CURRENT BRANCH ================= */
+    const branchClasses = allTeacherClasses.filter(
+      (c) => c.branch && c.branch.toString() === branchId.toString()
+    );
+    const branchClassIds = branchClasses.map((c) => c._id);
 
+    /* ================= 3. ATTENDANCE FOR CURRENT BRANCH ================= */
     const attendance = await Attendance.find({
-      class: { $in: classIds }
-    }).populate("student", "college");
+      class: { $in: branchClassIds },
+    }).populate("student", "fullName email college group");
 
+    /* ================= 4. BASIC STATS & COLLEGE DISTRIBUTION ================= */
     const uniqueStudents = new Set();
-    const collegeStudentMap = {}; // ⭐ UNIQUE STUDENTS PER COLLEGE
+    const collegeStudentMap = {};
     const classJoinCount = {};
     const dailyTrend = {};
 
-    attendance.forEach(a => {
-
+    attendance.forEach((a) => {
       if (!a.student) return;
-
       const studentId = a.student._id.toString();
       uniqueStudents.add(studentId);
 
-      /* ===== UNIQUE COLLEGE STUDENTS ===== */
-
       const college = a.student.college || "Unknown";
-
       if (!collegeStudentMap[college]) {
         collegeStudentMap[college] = new Set();
       }
-
       collegeStudentMap[college].add(studentId);
-
-      /* ===== CLASS ACTIVITY ===== */
 
       const classId = a.class.toString();
       classJoinCount[classId] = (classJoinCount[classId] || 0) + 1;
-
-      /* ===== DAILY TREND ===== */
 
       const day = a.createdAt.toISOString().split("T")[0];
       dailyTrend[day] = (dailyTrend[day] || 0) + 1;
     });
 
-    /* ================= TOP COLLEGE ================= */
-
     let topCollege = null;
-    let max = 0;
-
+    let maxCollegeCount = 0;
     for (const college in collegeStudentMap) {
       const count = collegeStudentMap[college].size;
-      if (count > max) {
-        max = count;
+      if (count > maxCollegeCount) {
+        maxCollegeCount = count;
         topCollege = college;
       }
     }
 
-    /* ================= MOST ACTIVE CLASS ================= */
-
     let activeClassId = null;
     let activeMax = 0;
-
     for (const cid in classJoinCount) {
       if (classJoinCount[cid] > activeMax) {
         activeMax = classJoinCount[cid];
         activeClassId = cid;
       }
     }
+    const activeClass = branchClasses.find((c) => c._id.toString() === activeClassId);
 
-    const activeClass = classes.find(c => c._id.toString() === activeClassId);
-
-    /* ================= FORMAT COLLEGE PIE ================= */
-
-    const collegeStats = Object.keys(collegeStudentMap).map(college => ({
+    const collegeStats = Object.keys(collegeStudentMap).map((college) => ({
       college,
-      students: collegeStudentMap[college].size   // ⭐ UNIQUE STUDENTS
+      students: collegeStudentMap[college].size,
     }));
-
-    /* ================= FORMAT DAILY TREND ================= */
 
     const trend = Object.keys(dailyTrend)
       .sort()
-      .map(date => ({
+      .map((date) => ({
         date,
-        joins: dailyTrend[date]
+        joins: dailyTrend[date],
       }));
 
-    /* ================= RESPONSE ================= */
+    /* ================= 5. MONTH-WISE ATTENDANCE ANALYSIS ================= */
+    const monthMap = {};
 
+    // Map classes to months
+    branchClasses.forEach((cls) => {
+      const rawDate = cls.classDate || (cls.createdAt ? cls.createdAt.toISOString().slice(0, 10) : "");
+      const monthKey = rawDate.slice(0, 7) || new Date().toISOString().slice(0, 7);
+      if (!monthMap[monthKey]) {
+        monthMap[monthKey] = {
+          month: monthKey,
+          monthLabel: formatMonthLabel(monthKey),
+          classesCount: 0,
+          totalJoinings: 0,
+          uniqueStudentIds: new Set(),
+          totalDurationMins: 0,
+          completedSessions: 0,
+          leftEarlySessions: 0,
+        };
+      }
+      monthMap[monthKey].classesCount++;
+    });
+
+    // Map attendance to months
+    attendance.forEach((a) => {
+      const rawDate = a.createdAt ? a.createdAt.toISOString().slice(0, 10) : "";
+      const monthKey = rawDate.slice(0, 7) || new Date().toISOString().slice(0, 7);
+      if (!monthMap[monthKey]) {
+        monthMap[monthKey] = {
+          month: monthKey,
+          monthLabel: formatMonthLabel(monthKey),
+          classesCount: 0,
+          totalJoinings: 0,
+          uniqueStudentIds: new Set(),
+          totalDurationMins: 0,
+          completedSessions: 0,
+          leftEarlySessions: 0,
+        };
+      }
+      monthMap[monthKey].totalJoinings++;
+      if (a.student?._id) {
+        monthMap[monthKey].uniqueStudentIds.add(a.student._id.toString());
+      }
+      monthMap[monthKey].totalDurationMins += a.durationMins || 0;
+      if (a.exitStatus === "completed") monthMap[monthKey].completedSessions++;
+      if (a.exitStatus === "left_early") monthMap[monthKey].leftEarlySessions++;
+    });
+
+    const monthlyStats = Object.values(monthMap)
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .map((m) => ({
+        month: m.month,
+        monthLabel: m.monthLabel,
+        classesCount: m.classesCount,
+        totalJoinings: m.totalJoinings,
+        uniqueStudents: m.uniqueStudentIds.size,
+        avgAttendance: m.classesCount > 0 ? Math.round(m.totalJoinings / m.classesCount) : 0,
+        totalDurationMins: m.totalDurationMins,
+        completedSessions: m.completedSessions,
+        leftEarlySessions: m.leftEarlySessions,
+      }));
+
+    /* ================= 6. STUDENT-WISE ANALYTICS ================= */
+    let filteredAttendance = attendance;
+    let filteredClassesCount = branchClasses.length;
+
+    if (month) {
+      filteredAttendance = attendance.filter(
+        (a) => (a.createdAt ? a.createdAt.toISOString().slice(0, 7) : "") === month
+      );
+      filteredClassesCount = branchClasses.filter((c) => {
+        const raw = c.classDate || (c.createdAt ? c.createdAt.toISOString().slice(0, 10) : "");
+        return raw.slice(0, 7) === month;
+      }).length;
+    }
+
+    const studentMap = {};
+    filteredAttendance.forEach((a) => {
+      if (!a.student) return;
+      const sId = a.student._id.toString();
+      if (!studentMap[sId]) {
+        studentMap[sId] = {
+          studentId: sId,
+          fullName: a.student.fullName || "Unknown",
+          email: a.student.email || "-",
+          college: a.student.college || "Unknown",
+          group: a.student.group || "-",
+          attendedClasses: 0,
+          totalDurationMins: 0,
+          completedCount: 0,
+          leftEarlyCount: 0,
+          lastSeenAt: a.createdAt,
+        };
+      }
+      studentMap[sId].attendedClasses++;
+      studentMap[sId].totalDurationMins += a.durationMins || 0;
+      if (a.exitStatus === "completed") studentMap[sId].completedCount++;
+      if (a.exitStatus === "left_early") studentMap[sId].leftEarlyCount++;
+      if (a.createdAt > studentMap[sId].lastSeenAt) {
+        studentMap[sId].lastSeenAt = a.createdAt;
+      }
+    });
+
+    const effectiveTotalClasses = Math.max(1, filteredClassesCount);
+    const studentAnalytics = Object.values(studentMap)
+      .map((s) => {
+        const attendanceRate = Math.min(100, Math.round((s.attendedClasses / effectiveTotalClasses) * 100));
+        let tier = "Champion";
+        if (attendanceRate < 50) tier = "Needs Attention";
+        else if (attendanceRate < 80) tier = "Regular";
+
+        return {
+          ...s,
+          totalClasses: filteredClassesCount,
+          attendanceRate,
+          tier,
+        };
+      })
+      .sort((a, b) => b.attendedClasses - a.attendedClasses || b.attendanceRate - a.attendanceRate);
+
+    /* ================= 7. BRANCH-WISE COMPARISON ANALYTICS ================= */
+    const allTeacherClassIds = allTeacherClasses.map((c) => c._id);
+    const allTeacherAttendance = await Attendance.find({
+      class: { $in: allTeacherClassIds },
+    }).select("class student");
+
+    const classToBranchMap = {};
+    allTeacherClasses.forEach((c) => {
+      if (c.branch) classToBranchMap[c._id.toString()] = c.branch.toString();
+    });
+
+    const branchComparison = allTeacherBranches.map((b) => {
+      const bIdStr = b._id.toString();
+      const bClasses = allTeacherClasses.filter((c) => c.branch && c.branch.toString() === bIdStr);
+      const bAtts = allTeacherAttendance.filter(
+        (a) => a.class && classToBranchMap[a.class.toString()] === bIdStr
+      );
+      const bUniqueStudents = new Set(bAtts.map((a) => (a.student ? a.student.toString() : ""))).size;
+
+      return {
+        branchId: b._id,
+        branchName: b.name,
+        year: b.year || "",
+        totalClasses: bClasses.length,
+        totalStudents: bUniqueStudents,
+        totalAttendances: bAtts.length,
+        avgClassAttendance: bClasses.length > 0 ? Math.round(bAtts.length / bClasses.length) : 0,
+        isCurrent: bIdStr === branchId.toString(),
+      };
+    }).sort((a, b) => b.totalAttendances - a.totalAttendances);
+
+    /* ================= 8. UNIFIED RESPONSE ================= */
     res.json({
-      branchName: branch?.name || "Branch",
-      totalClasses: classes.length,
+      branchName: branch.name || "Branch",
+      branchYear: branch.year || "",
+      totalClasses: branchClasses.length,
       totalStudents: uniqueStudents.size,
       totalJoinings: attendance.length,
 
       collegeStats,
       topCollege,
       mostActiveClass: activeClass?.className || "N/A",
-      dailyTrend: trend
-    });
+      dailyTrend: trend,
 
+      // 🌟 Enhanced Analytics Dimensions
+      monthlyStats,
+      studentAnalytics,
+      branchComparison,
+      selectedMonth: month || "",
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Analytics error" });
+    console.error("Analytics Error:", err);
+    res.status(500).json({ message: "Analytics error: " + err.message });
   }
 };

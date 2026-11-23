@@ -29,12 +29,17 @@ function ClassAttendance() {
         setRecordingUrl(res.data.recordingUrl);
       }
       if (manual) {
-        showToast(res.data?.message || "Meet telemetry synced successfully!", "success");
+        const count = res.data?.syncedCount || 0;
+        if (count > 0) {
+          showToast(res.data?.message || `Synced ${count} participants from Google Meet!`, "success", "Meet Synced");
+        } else {
+          showToast(res.data?.message || "No Google Meet conference records found yet. Ensure the meeting was joined.", "info", "Meet Telemetry");
+        }
       }
     } catch (err) {
       console.warn("Meet telemetry sync error:", err);
       if (manual) {
-        showToast(err.response?.data?.message || "Could not sync Google Meet data", "warning");
+        showToast(err.response?.data?.message || "Could not sync Google Meet data", "error", "Sync Error");
       }
     } finally {
       setSyncingMeet(false);
@@ -146,9 +151,124 @@ function ClassAttendance() {
   const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const showToast = (message, type = "success", actionUrl = null) => {
-    setToast({ message, type, actionUrl });
-    setTimeout(() => setToast(null), 6000);
+  // AI Clean & Dispatch States
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiRequirements, setAiRequirements] = useState("");
+  const [selectedCols, setSelectedCols] = useState([
+    "fullName",
+    "email",
+    "college",
+    "group",
+    "joinedAt",
+    "leftAt",
+    "durationMins",
+    "status",
+    "engagement",
+    "stakeholderNotes",
+  ]);
+  const [dispatchTarget, setDispatchTarget] = useState("download");
+  const [stakeholderEmails, setStakeholderEmails] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiPreviewData, setAiPreviewData] = useState(null);
+
+  const availableColumns = [
+    { key: "fullName", label: "Student Name" },
+    { key: "email", label: "Email" },
+    { key: "college", label: "College" },
+    { key: "group", label: "Group / Dept" },
+    { key: "joinedAt", label: "Joined Time" },
+    { key: "leftAt", label: "Left Call At" },
+    { key: "durationMins", label: "Duration (Mins)" },
+    { key: "status", label: "Status" },
+    { key: "engagement", label: "Engagement Level" },
+    { key: "stakeholderNotes", label: "Stakeholder Notes" },
+  ];
+
+  const toggleCol = (colKey) => {
+    setSelectedCols((prev) =>
+      prev.includes(colKey) ? prev.filter((c) => c !== colKey) : [...prev, colKey]
+    );
+  };
+
+  const applyPreset = (preset) => {
+    if (preset === "hod") {
+      setAiRequirements("Normalize all student names to Title Case, standardize college names, classify engagement into High/Moderate/Low, and include duration.");
+    } else if (preset === "active") {
+      setAiRequirements("Filter only to students who attended at least 10 minutes, format names cleanly, and highlight overall participation.");
+    } else if (preset === "executive") {
+      setAiRequirements("Format for executive management digest. Highlight any student who left early or had zero minutes, and provide concise engagement notes.");
+    }
+  };
+
+  const handleAiPreview = async () => {
+    try {
+      setAiLoading(true);
+      const res = await API.post(`/attendance/ai-preview/${id}`, {
+        requirements: aiRequirements,
+        selectedColumns: selectedCols,
+      });
+      setAiPreviewData(res.data);
+      showToast(`Preview ready: ${res.data.records?.length || 0} records cleaned`, "info", "Preview Ready");
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to generate preview", "error", "Preview Failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleAiDispatch = async () => {
+    if (dispatchTarget === "email" && !stakeholderEmails.trim()) {
+      showToast("Please enter at least one stakeholder recipient email.", "warning", "Missing Recipient");
+      return;
+    }
+
+    try {
+      setAiLoading(true);
+      if (dispatchTarget === "download") {
+        const res = await API.post(
+          `/attendance/ai-dispatch/${id}`,
+          {
+            requirements: aiRequirements,
+            selectedColumns: selectedCols,
+            dispatchTarget: "download",
+          },
+          { responseType: "blob" }
+        );
+        const safeName = (classInfo?.className || "Attendance").replace(/[^a-z0-9]/gi, "_");
+        downloadFile(new Blob([res.data]), `${safeName}_Cleaned_Report.xlsx`);
+        showToast("Cleaned report downloaded successfully!", "success", "Download Complete");
+        setShowAiModal(false);
+      } else if (dispatchTarget === "email") {
+        const res = await API.post(`/attendance/ai-dispatch/${id}`, {
+          requirements: aiRequirements,
+          selectedColumns: selectedCols,
+          dispatchTarget: "email",
+          stakeholderEmails,
+        });
+        showToast(res.data?.message || "Cleaned report sent to stakeholders!", "success", "Email Sent");
+        setShowAiModal(false);
+      } else if (dispatchTarget === "google_sheet") {
+        const res = await API.post(`/attendance/ai-dispatch/${id}`, {
+          requirements: aiRequirements,
+          selectedColumns: selectedCols,
+          dispatchTarget: "google_sheet",
+        });
+        if (res.data?.sheetUrl) {
+          setCreatedSheetUrl(res.data.sheetUrl);
+          showToast("Stakeholder Google Sheet generated!", "success", "Google Sheet", res.data.sheetUrl);
+          window.open(res.data.sheetUrl, "_blank");
+          setShowAiModal(false);
+        }
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to dispatch cleaned attendance", "error", "Dispatch Failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const showToast = (message, type = "info", title = "", actionUrl = null) => {
+    setToast({ message, type, title, actionUrl, id: Date.now() });
   };
 
   const handleExportGoogleSheet = async () => {
@@ -254,6 +374,15 @@ function ClassAttendance() {
             disabled={exportingSheet || attendance.length === 0}
           >
             {exportingSheet ? "Creating Sheet..." : "📊 Export to Google Sheets"}
+          </button>
+
+          <button
+            className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer"
+            onClick={() => setShowAiModal(true)}
+            disabled={attendance.length === 0}
+            title="Clean records with LLM and download or email to stakeholders"
+          >
+            <span>✨ Clean & Dispatch (AI)</span>
           </button>
 
           <button
@@ -371,7 +500,7 @@ function ClassAttendance() {
               <tbody className="divide-y divide-[var(--border)]">
                 {attendance.map((record, i) => {
                   if (!record.student) return null;
-                  const joinDate = new Date(record.createdAt);
+                  const joinDate = record.joinedAt ? new Date(record.joinedAt) : new Date(record.createdAt);
 
                   return (
                     <tr key={record._id} className="hover:bg-[var(--bg-secondary)] transition-colors duration-150">
@@ -512,12 +641,221 @@ function ClassAttendance() {
         </div>
       )}
 
+      {/* AI CLEAN & DISPATCH MODAL */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+          <div className="fixed inset-0" onClick={() => !aiLoading && setShowAiModal(false)} />
+          <div className="relative bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 sm:p-7 shadow-2xl max-w-xl w-full z-10 my-8 transition-colors duration-200">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-xl text-violet-400">
+                  ✨
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--text)] tracking-tight">
+                    AI Data Cleaner & Stakeholder Dispatch
+                  </h3>
+                  <p className="text-xs text-[var(--subtext)]">
+                    Normalizes attendance records & delivers tailored sheets to stakeholders
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiModal(false)}
+                disabled={aiLoading}
+                className="text-[var(--subtext)] hover:text-[var(--text)] p-1 rounded-lg text-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Requirement Presets */}
+            <div className="mb-3">
+              <label className="block text-xs font-semibold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                Quick Presets
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyPreset("hod")}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] text-[var(--text)] border border-[var(--border)] cursor-pointer transition-colors"
+                >
+                  📋 HOD Register
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("active")}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] text-[var(--text)] border border-[var(--border)] cursor-pointer transition-colors"
+                >
+                  ⚡ Active Students (&gt;10m)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("executive")}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] text-[var(--text)] border border-[var(--border)] cursor-pointer transition-colors"
+                >
+                  🎯 Executive Digest
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Requirements Text */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                Stakeholder Requirements / Prompt
+              </label>
+              <textarea
+                rows={2}
+                value={aiRequirements}
+                onChange={(e) => setAiRequirements(e.target.value)}
+                placeholder="e.g. Normalize names to Title Case, filter for students with at least 10 mins duration, include engagement note..."
+                className="w-full text-xs sm:text-sm p-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--subtext)] focus:outline-none focus:border-violet-500 transition-colors resize-none"
+              />
+            </div>
+
+            {/* Target Columns Checklist */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                Columns in Sheet ({selectedCols.length} selected)
+              </label>
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1">
+                {availableColumns.map((col) => {
+                  const active = selectedCols.includes(col.key);
+                  return (
+                    <button
+                      key={col.key}
+                      type="button"
+                      onClick={() => toggleCol(col.key)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all cursor-pointer ${
+                        active
+                          ? "bg-violet-600/15 border-violet-500/50 text-violet-400"
+                          : "bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--subtext)] hover:text-[var(--text)]"
+                      }`}
+                    >
+                      {active ? "✓ " : "+ "}
+                      {col.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Dispatch Target Selection */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                Dispatch Destination
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "download", label: "📥 Download Excel", desc: ".xlsx file" },
+                  { id: "email", label: "✉️ Email Stakeholders", desc: "Nodemailer" },
+                  { id: "google_sheet", label: "📊 Google Sheets", desc: "Live Drive link" },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setDispatchTarget(opt.id)}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      dispatchTarget === opt.id
+                        ? "bg-violet-600/15 border-violet-500 text-violet-400 shadow-sm"
+                        : "bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--subtext)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    <div className="text-xs font-bold leading-tight">{opt.label}</div>
+                    <div className="text-[10px] opacity-75 mt-0.5">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Email Recipients Input (if Email chosen) */}
+            {dispatchTarget === "email" && (
+              <div className="mb-4 animate-[fadeIn_0.2s_ease-out]">
+                <label className="block text-xs font-semibold text-[var(--subtext)] uppercase tracking-wider mb-1.5">
+                  Stakeholder Email Address(es)
+                </label>
+                <input
+                  type="text"
+                  value={stakeholderEmails}
+                  onChange={(e) => setStakeholderEmails(e.target.value)}
+                  placeholder="e.g. hod@college.edu, principal@barabari.org"
+                  className="w-full text-xs sm:text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--subtext)] focus:outline-none focus:border-violet-500 transition-colors"
+                />
+              </div>
+            )}
+
+            {/* AI Preview Summary Card */}
+            {aiPreviewData && (
+              <div className="mb-4 p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 text-xs text-[var(--text)] animate-[fadeIn_0.2s_ease-out]">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-violet-400">✨ AI Executive Summary</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300">
+                    {aiPreviewData.engine}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--subtext)] leading-relaxed">{aiPreviewData.summary}</p>
+                <div className="mt-2 text-[10px] text-[var(--subtext)]">
+                  Previewed {aiPreviewData.totalCount || aiPreviewData.records?.length || 0} cleaned student records.
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-[var(--border)]">
+              <button
+                type="button"
+                onClick={handleAiPreview}
+                disabled={aiLoading}
+                className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] text-[var(--text)] text-xs font-semibold cursor-pointer transition-colors disabled:opacity-50"
+              >
+                {aiLoading ? "Processing..." : "👁 Preview Cleanup"}
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAiModal(false)}
+                  disabled={aiLoading}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAiDispatch}
+                  disabled={aiLoading}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs font-semibold shadow-md transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  {aiLoading ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Dispatching...</span>
+                    </>
+                  ) : (
+                    <span>
+                      {dispatchTarget === "download"
+                        ? "📥 Download Cleaned Sheet"
+                        : dispatchTarget === "email"
+                        ? "✉️ Dispatch Email"
+                        : "📊 Create Stakeholder Sheet"}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TOAST NOTIFICATION CARD */}
       {toast && (
         <Toast
-          key={toast.message + (toast.type || "")}
+          key={toast.id}
           message={toast.message}
           type={toast.type || "info"}
+          title={toast.title}
           actionUrl={toast.actionUrl}
           actionLabel="Open Sheet ↗"
           onClose={() => setToast(null)}

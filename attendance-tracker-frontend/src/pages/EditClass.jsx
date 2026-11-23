@@ -225,7 +225,7 @@ function EditClass() {
 
       } catch (err) {
         console.error(err);
-        alert("Failed to load class data");
+        showToast("Failed to load class data. Please refresh.", "error", "Load Error");
       } finally {
         setLoading(false);
       }
