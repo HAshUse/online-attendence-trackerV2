@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../services/api";
 import Toast from "../components/Toast";
+import {
+  ArrowLeft,
+  Download,
+  FileSpreadsheet,
+  Sparkles,
+  RefreshCw,
+  Building2,
+  Users,
+  ExternalLink,
+  Video,
+} from "lucide-react";
 
 function ClassAttendance() {
   const { id } = useParams();
@@ -344,99 +355,136 @@ function ClassAttendance() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] px-4 py-7 sm:px-6 md:px-8 transition-colors duration-200">
-
-      <h2 className="text-center mb-7 text-2xl font-bold text-[var(--text)] tracking-tight">
-        Class Attendance
-      </h2>
-
-      {/* TOP ACTIONS */}
-      <div className="bg-[var(--card)] p-5 rounded-2xl border border-[var(--border)] shadow-sm mb-6 transition-colors duration-200 flex flex-col gap-3">
-        {/* Row 1: Back + Download Full + Google Sheet */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button 
-            className="px-4 py-2.5 rounded-lg bg-[var(--primary)] text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-[var(--primary-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 cursor-pointer" 
-            onClick={() => navigate(-1)}
-          >
-            ← Back to Dashboard
-          </button>
-
-          <button 
-            className="px-4 py-2.5 rounded-lg bg-[var(--primary)] text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-[var(--primary-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 cursor-pointer" 
-            onClick={handleExportAll}
-          >
-            📥 Download Excel
-          </button>
-
-          <button 
-            className="px-4 py-2.5 rounded-lg bg-[#0f9d58] hover:bg-[#0b8043] text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none inline-flex items-center gap-1.5 cursor-pointer" 
-            onClick={handleExportGoogleSheet}
-            disabled={exportingSheet || attendance.length === 0}
-          >
-            {exportingSheet ? "Creating Sheet..." : "📊 Export to Google Sheets"}
-          </button>
-
-          <button
-            className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer"
-            onClick={() => setShowAiModal(true)}
-            disabled={attendance.length === 0}
-            title="Clean records with LLM and download or email to stakeholders"
-          >
-            <span>✨ Clean & Dispatch (AI)</span>
-          </button>
-
-          <button
-            className="px-4 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--primary)] text-[var(--text)] text-xs sm:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer"
-            onClick={() => handleSyncMeet(true)}
-            disabled={syncingMeet}
-            title="Fetch participant exit times & duration from Google Meet"
-          >
-            {syncingMeet ? (
-              <>
-                <div className="w-3.5 h-3.5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div>
-                <span>Syncing Meet...</span>
-              </>
-            ) : (
-              <>
-                <span>🔄 Refresh Meet Data</span>
-              </>
-            )}
-          </button>
-
-          {createdSheetUrl && (
-            <a
-              href={createdSheetUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-95 inline-flex items-center gap-1.5 no-underline cursor-pointer animate-[fadeIn_0.2s_ease-out]"
+    <div className="min-h-screen bg-[var(--bg)] px-4 py-8 sm:px-6 md:px-10 transition-colors duration-200">
+      <div className="max-w-6xl mx-auto">
+        {/* TOP NAVIGATION & HEADER */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--subtext)] hover:text-[var(--primary)] transition-colors mb-2 cursor-pointer"
             >
-              📊 View Created Sheet ↗
-            </a>
-          )}
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Dashboard</span>
+            </button>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-heading)] tracking-tight">
+                {classInfo?.className || "Class Attendance"}
+              </h1>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--primary)]/20 select-none">
+                <Users className="w-3.5 h-3.5" />
+                <span>{attendance.length} {attendance.length === 1 ? "Student" : "Students"}</span>
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-[var(--subtext)] mt-1">
+              Live attendance records, Google Meet telemetry, and tailored stakeholder exports.
+            </p>
+          </div>
+
+          {/* TELEMETRY REFRESH ACTION */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleSyncMeet(true)}
+              disabled={syncingMeet}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--border-focus)] text-[var(--text)] text-xs sm:text-sm font-semibold transition-all hover:bg-[var(--card-hover)] cursor-pointer active:scale-95 disabled:opacity-60"
+              title="Fetch participant exit times & duration from Google Meet"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${syncingMeet ? "animate-spin" : ""}`} />
+              <span>{syncingMeet ? "Syncing Meet..." : "Sync Meet Data"}</span>
+            </button>
+          </div>
         </div>
 
-        {/* Row 2: College select + Download Selected */}
-        <div className="flex items-center gap-2.5 flex-wrap pt-3 border-t border-[var(--border)]">
-          <select
-            value={selectedCollege}
-            onChange={(e) => setSelectedCollege(e.target.value)}
-            className="flex-1 min-w-[180px] px-3 py-2 text-sm border-[1.5px] border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--text)] outline-none cursor-pointer transition-all duration-200 focus:border-[var(--border-focus)] focus:bg-[var(--card)] focus:ring-2 focus:ring-indigo-500/20"
-          >
-            <option value="">Select College</option>
-            {Object.keys(collegeStudents).sort().map(college => (
-              <option key={college} value={college}>{college}</option>
-            ))}
-          </select>
+        {/* TOOLBAR CARD: REARRANGED FILTERS & EXPORT ACTIONS */}
+        <div className="p-4 sm:p-5 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow-sm)] mb-6 transition-colors">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            
+            {/* LEFT: FULL EXPORT ACTIONS */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="text-xs font-bold text-[var(--subtext)] uppercase tracking-wider mr-1 hidden sm:inline">
+                Export:
+              </span>
 
-          <button 
-            className="px-4 py-2.5 rounded-lg bg-[var(--primary)] text-white text-xs sm:text-sm font-semibold transition-all duration-200 hover:bg-[var(--primary-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none cursor-pointer" 
-            onClick={handleCollegeExport} 
-            disabled={!selectedCollege}
-          >
-            Download Selected College
-          </button>
+              {/* Download Excel */}
+              <button
+                onClick={handleExportAll}
+                className="inline-flex items-center gap-1.5 h-9.5 px-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--border-focus)] hover:bg-[var(--card-hover)] text-[var(--text)] text-xs sm:text-sm font-semibold transition-all cursor-pointer active:scale-95"
+                title="Download full class Excel (.xlsx)"
+              >
+                <Download className="w-3.5 h-3.5 text-[var(--subtext)]" />
+                <span>Excel (.xlsx)</span>
+              </button>
+
+              {/* Google Sheets */}
+              <button
+                onClick={handleExportGoogleSheet}
+                disabled={exportingSheet || attendance.length === 0}
+                className="inline-flex items-center gap-1.5 h-9.5 px-3.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs sm:text-sm font-semibold transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                title="Create Google Sheet in your Drive"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>{exportingSheet ? "Creating..." : "Google Sheets"}</span>
+              </button>
+
+              {/* AI Clean & Dispatch */}
+              <button
+                onClick={() => setShowAiModal(true)}
+                disabled={attendance.length === 0}
+                className="inline-flex items-center gap-1.5 h-9.5 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-md shadow-indigo-500/25 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                title="Clean records with LLM and download or email to stakeholders"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Clean & Dispatch (AI)</span>
+              </button>
+
+              {createdSheetUrl && (
+                <a
+                  href={createdSheetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 h-9.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition-all cursor-pointer no-underline active:scale-95"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Sheet</span>
+                </a>
+              )}
+            </div>
+
+            {/* RIGHT: TARGETED COLLEGE FILTER & DOWNLOAD */}
+            <div className="flex items-center gap-2 pt-3 lg:pt-0 border-t lg:border-t-0 border-[var(--border)]">
+              <div className="relative flex-1 sm:w-56">
+                <Building2 className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select
+                  value={selectedCollege}
+                  onChange={(e) => setSelectedCollege(e.target.value)}
+                  className="w-full h-9.5 pl-9 pr-8 text-xs sm:text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl text-[var(--text)] focus:outline-none focus:border-[var(--border-focus)] transition-colors cursor-pointer appearance-none truncate"
+                >
+                  <option value="">Filter by College ({Object.keys(collegeStudents).length})</option>
+                  {Object.keys(collegeStudents).sort().map((college) => (
+                    <option key={college} value={college}>
+                      {college}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)] text-xs">
+                  ▾
+                </div>
+              </div>
+
+              <button
+                onClick={handleCollegeExport}
+                disabled={!selectedCollege}
+                className="inline-flex items-center gap-1.5 h-9.5 px-3.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs sm:text-sm font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                title={selectedCollege ? `Download attendance for ${selectedCollege}` : "Select a college to download"}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Export College</span>
+                <span className="sm:hidden">Export</span>
+              </button>
+            </div>
+
+          </div>
         </div>
-      </div>
 
       {/* RECORDING BANNER */}
       {recordingUrl && (
@@ -593,6 +641,8 @@ function ClassAttendance() {
           ))}
         </div>
       )}
+
+      </div>
 
       {/* GOOGLE CONNECT POPUP MODAL */}
       {showGoogleModal && (
