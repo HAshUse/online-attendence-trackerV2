@@ -97,8 +97,13 @@ function Dashboard() {
   };
 
   /* ================= COPY JOIN LINK ================= */
-  const handleCopyLink = (classCode, e) => {
+  const handleCopyLink = (code, e) => {
     e.stopPropagation();
+    const classCode = code || "";
+    if (!classCode || classCode === "undefined") {
+      showToast("Class code not found for this class.", "error");
+      return;
+    }
     const joinUrl = `${window.location.origin}/join/${classCode}`;
     navigator.clipboard
       .writeText(joinUrl)
@@ -313,16 +318,23 @@ function Dashboard() {
                   <div>
                     {/* TOP BADGES & MENU */}
                     <div className="flex items-start justify-between gap-3 mb-3">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                          isAuto
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
-                            : "bg-blue-500/10 text-blue-400 border-blue-500/25"
-                        }`}
-                      >
-                        <Video className="w-3 h-3" />
-                        {isAuto ? "Google Meet" : "Custom Link"}
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            isAuto
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+                              : "bg-blue-500/10 text-blue-400 border-blue-500/25"
+                          }`}
+                        >
+                          <Video className="w-3 h-3" />
+                          {isAuto ? "Google Meet" : "Custom Link"}
+                        </span>
+                        {cls.classCode && (
+                          <span className="font-mono text-[11px] font-bold text-[var(--primary)] bg-[var(--primary-light)] px-2 py-0.5 rounded-md border border-[var(--primary)]/20">
+                            #{cls.classCode}
+                          </span>
+                        )}
+                      </div>
 
                       {/* 3-DOT MENU */}
                       <div
@@ -397,11 +409,11 @@ function Dashboard() {
                   {/* BOTTOM ACTIONS */}
                   <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
                     <button
-                      onClick={(e) => handleCopyLink(cls.code, e)}
+                      onClick={(e) => handleCopyLink(cls.classCode || cls.code, e)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] border border-[var(--border)] text-[var(--text)] text-xs font-semibold transition-colors cursor-pointer"
                       title="Copy student join link"
                     >
-                      {copiedId === cls.code ? (
+                      {copiedId === (cls.classCode || cls.code) ? (
                         <>
                           <Check className="w-3.5 h-3.5 text-emerald-400" />
                           <span className="text-emerald-400">Copied</span>
