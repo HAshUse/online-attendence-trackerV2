@@ -8,6 +8,7 @@ import {
   markStudentPresent,
   createBranchSheet,
   syncBranchRecordingsSheet,
+  makeDriveFilePublic,
   exportClassAttendanceToSheet,
   exportOverallAttendanceToSheet,
   getSheetUrl,
@@ -131,12 +132,30 @@ export const markAttendance = async (req, res) => {
           const classDate = new Date().toLocaleDateString("en-IN", {
             day: "2-digit", month: "2-digit", year: "numeric"
           });
-          await markStudentPresent(tokens, branch.sheetId, {
-            fullName: student.fullName,
-            email: student.email,
-            group: student.group,
-            college: student.college,
-          }, classDate);
+          try {
+            await markStudentPresent(tokens, branch.sheetId, {
+              fullName: student.fullName,
+              email: student.email,
+              group: student.group,
+              college: student.college,
+            }, classDate);
+          } catch (mErr) {
+            const errStr = `${mErr.message || ""} ${mErr.code || ""}`.toLowerCase();
+            if (errStr.includes("permission") || errStr.includes("not found") || mErr.code === 403 || mErr.code === 404) {
+              console.warn(`[MarkAttendance] Sheet ${branch.sheetId} denied or missing. Auto-creating fresh sheet...`);
+              const newSheetId = await createBranchSheet(tokens, branch.name);
+              branch.sheetId = newSheetId;
+              await branch.save();
+              await markStudentPresent(tokens, branch.sheetId, {
+                fullName: student.fullName,
+                email: student.email,
+                group: student.group,
+                college: student.college,
+              }, classDate);
+            } else {
+              throw mErr;
+            }
+          }
         }
       }
     } catch (sheetErr) {
@@ -280,18 +299,35 @@ export const syncClassMeetTelemetry = async (req, res) => {
           classDoc.recordingFileId = recordingInfo.recordingFileId || "";
           await classDoc.save();
 
+          const teacherTokens = {
+            access_token: teacher.googleAccessToken,
+            refresh_token: teacher.googleRefreshToken,
+          };
+
+          // Make drive video viewable by anyone with the link
+          await makeDriveFilePublic(teacherTokens, classDoc.recordingFileId || classDoc.recordingUrl);
+
           // Auto-sync this recording link into the branch's single Google Sheet
           try {
             const branch = await Branch.findById(classDoc.branch);
-            if (branch?.sheetId && teacher?.googleAccessToken) {
-              await syncBranchRecordingsSheet(
-                {
-                  access_token: teacher.googleAccessToken,
-                  refresh_token: teacher.googleRefreshToken,
-                },
-                branch.sheetId,
-                classDoc
-              );
+            if (teacher?.googleAccessToken && branch) {
+              if (!branch.sheetId) {
+                branch.sheetId = await createBranchSheet(teacherTokens, branch.name);
+                await branch.save();
+              }
+              try {
+                await syncBranchRecordingsSheet(teacherTokens, branch.sheetId, classDoc);
+              } catch (sheetSyncErr) {
+                const errStr = `${sheetSyncErr.message || ""} ${sheetSyncErr.code || ""}`.toLowerCase();
+                if (errStr.includes("permission") || errStr.includes("not found") || sheetSyncErr.code === 403 || sheetSyncErr.code === 404) {
+                  console.warn(`[TelemetrySync] Branch sheet ${branch.sheetId} denied/missing. Creating fresh sheet...`);
+                  branch.sheetId = await createBranchSheet(teacherTokens, branch.name);
+                  await branch.save();
+                  await syncBranchRecordingsSheet(teacherTokens, branch.sheetId, classDoc);
+                } else {
+                  throw sheetSyncErr;
+                }
+              }
             }
           } catch (sheetSyncErr) {
             console.warn("Could not sync recording link to branch sheet:", sheetSyncErr.message);
@@ -1079,7 +1115,36 @@ export const syncBranchRecordingsToGoogleSheet = async (req, res) => {
     // Fetch all classes for this branch
     const classes = await Class.find({ branch: branchId }).sort({ createdAt: 1 });
 
-    const result = await syncBranchRecordingsSheet(tokens, branch.sheetId, classes);
+    // Make all drive recordings viewable by anyone with the link
+    for (const c of classes) {
+      const link = c.recordingFileId || c.recordingUrl;
+      if (link) {
+        await makeDriveFilePublic(tokens, link);
+      }
+    }
+
+    let result;
+    try {
+      result = await syncBranchRecordingsSheet(tokens, branch.sheetId, classes);
+    } catch (sheetErr) {
+      const errStr = `${sheetErr.message || ""} ${sheetErr.code || ""} ${sheetErr.status || ""}`.toLowerCase();
+      const isDeniedOrNotFound =
+        errStr.includes("permission") ||
+        errStr.includes("not have permission") ||
+        errStr.includes("not found") ||
+        errStr.includes("403") ||
+        errStr.includes("404");
+
+      if (isDeniedOrNotFound) {
+        console.warn(`[SyncRecordings] Sheet ${branch.sheetId} denied or missing. Auto-creating fresh sheet under current account...`);
+        const newSheetId = await createBranchSheet(tokens, branch.name);
+        branch.sheetId = newSheetId;
+        await branch.save();
+        result = await syncBranchRecordingsSheet(tokens, branch.sheetId, classes);
+      } else {
+        throw sheetErr;
+      }
+    }
 
     res.json({
       message: "All branch recordings synced to single Google Sheet",

@@ -518,7 +518,10 @@ export const syncBranchRecordingsSheet = async (tokens, spreadsheetId, classes =
   try {
     meta = await sheets.spreadsheets.get({ spreadsheetId });
   } catch (err) {
-    throw new Error(`Could not access Google Sheet (${spreadsheetId}): ${err.message}`);
+    const error = new Error(`Could not access Google Sheet (${spreadsheetId}): ${err.message}`);
+    error.status = err.status || err.response?.status;
+    error.code = err.code || err.response?.status;
+    throw error;
   }
 
   const sheetList = meta.data.sheets || [];
@@ -681,4 +684,47 @@ export const syncBranchRecordingsSheet = async (tokens, spreadsheetId, classes =
     sheetUrl: `${getSheetUrl(spreadsheetId)}#gid=${recordingsSheetId || 0}`,
     syncedCount: classList.length,
   };
+};
+
+/**
+ * Update Google Drive file permission so that anyone with the link can view.
+ * @param {object} tokens - Teacher's Google OAuth tokens
+ * @param {string} fileIdOrUrl - Google Drive file ID or full URL
+ * @returns {Promise<boolean>}
+ */
+export const makeDriveFilePublic = async (tokens, fileIdOrUrl) => {
+  if (!fileIdOrUrl || !tokens) return false;
+
+  let fileId = String(fileIdOrUrl).trim();
+  const match = fileId.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || fileId.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (match) {
+    fileId = match[1];
+  }
+
+  // Basic validation on file ID
+  if (!fileId || fileId.length < 5 || fileId.includes("/") || fileId.includes("http")) {
+    return false;
+  }
+
+  try {
+    const client = createOAuth2Client();
+    client.setCredentials({
+      access_token: tokens.googleAccessToken || tokens.access_token,
+      refresh_token: tokens.googleRefreshToken || tokens.refresh_token,
+    });
+
+    const drive = google.drive({ version: "v3", auth: client });
+    await drive.permissions.create({
+      fileId,
+      requestBody: {
+        role: "reader",
+        type: "anyone",
+      },
+    });
+    console.log(`[DrivePermissions] File ${fileId} set to view for anyone with link.`);
+    return true;
+  } catch (err) {
+    console.warn(`[DrivePermissions] Could not set public permission on file ${fileId}:`, err.message);
+    return false;
+  }
 };
