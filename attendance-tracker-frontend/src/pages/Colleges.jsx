@@ -30,8 +30,9 @@ const getInitialColleges = () => {
     const cached = localStorage.getItem("app_colleges");
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+      if (Array.isArray(parsed)) {
+        const valid = parsed.filter((c) => c && typeof c.name === "string");
+        if (valid.length > 0) return valid;
       }
     }
   } catch {}
@@ -90,7 +91,8 @@ function Colleges() {
         code: collegeCode || collegeName.substring(0, 4).toUpperCase(),
       });
 
-      const updated = [res.data, ...colleges];
+      const newCollege = res.data?.college || res.data;
+      const updated = newCollege?.name ? [newCollege, ...colleges] : colleges;
       setColleges(updated);
       localStorage.setItem("app_colleges", JSON.stringify(updated));
       setName("");
@@ -127,8 +129,8 @@ function Colleges() {
 
   const filteredColleges = colleges.filter(
     (c) =>
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.code && c.code.toLowerCase().includes(searchTerm.toLowerCase()))
+      (c?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c?.code && c.code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
