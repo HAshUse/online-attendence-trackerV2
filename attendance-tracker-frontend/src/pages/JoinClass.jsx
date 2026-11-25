@@ -11,7 +11,12 @@ const JoinClass = () => {
   }, []);
   const { classCode } = useParams();
 
-  const savedProfile = JSON.parse(localStorage.getItem("studentProfile"));
+  let savedProfile = null;
+  try {
+    savedProfile = JSON.parse(localStorage.getItem("studentProfile"));
+  } catch {
+    savedProfile = null;
+  }
 
   const [formData, setFormData] = useState({
     fullName: savedProfile?.fullName || "",

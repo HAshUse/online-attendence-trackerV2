@@ -124,6 +124,7 @@ export const markAttendance = async (req, res) => {
             expiry_date: teacher.googleTokenExpiry,
           };
           const classDate = new Date().toLocaleDateString("en-IN", {
+            timeZone: "Asia/Kolkata",
             day: "2-digit", month: "2-digit", year: "numeric",
           });
           try {

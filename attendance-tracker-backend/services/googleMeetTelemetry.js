@@ -65,6 +65,16 @@ export const fetchConferenceRecordsForMeeting = async (teacher, meetLink) => {
       }
     }
   } catch (err) {
+    const msg = `${err?.message || ""} ${err?.response?.data?.error || ""}`.toLowerCase();
+    if (
+      err?.status === 401 ||
+      err?.code === 401 ||
+      msg.includes("invalid_grant") ||
+      msg.includes("invalid credentials") ||
+      msg.includes("token")
+    ) {
+      throw err;
+    }
     console.warn("Conference records lookup error:", err.message);
   }
 
@@ -304,58 +314,6 @@ export const matchParticipantsToAttendance = (attendanceDocs, meetParticipants, 
       });
     }
   }
-
-  // Pass 2: Remaining unmatched participants fallback (e.g. customized Google profile names)
-  const unmatchedDocs = attendanceDocs.filter(
-    (d) => !updates.some((u) => u.attendanceId.toString() === d._id.toString())
-  );
-  const remainingParticipantIndices = meetParticipants
-    .map((_, i) => i)
-    .filter((i) => !usedParticipantIndices.has(i));
-
-  unmatchedDocs.forEach((doc, i) => {
-    if (i < remainingParticipantIndices.length) {
-      const pIdx = remainingParticipantIndices[i];
-      usedParticipantIndices.add(pIdx);
-      const matched = meetParticipants[pIdx];
-
-      let totalSeconds = 0;
-      let latestLeave = matched.latestEndTime;
-      let hasActiveSession = false;
-
-      matched.sessions.forEach((s) => {
-        if (!s.leftAt) {
-          hasActiveSession = true;
-          if (s.joinedAt) {
-            totalSeconds += Math.max(0, Math.round((Date.now() - s.joinedAt.getTime()) / 1000));
-          }
-        } else {
-          totalSeconds += s.durationSeconds || 0;
-          if (!latestLeave || s.leftAt > latestLeave) {
-            latestLeave = s.leftAt;
-          }
-        }
-      });
-
-      const durationMins = Math.max(1, Math.round(totalSeconds / 60));
-      let exitStatus = "completed";
-      if (hasActiveSession) {
-        exitStatus = "active";
-      } else if (durationMins < 5) {
-        exitStatus = "left_early";
-      }
-
-      updates.push({
-        attendanceId: doc._id,
-        joinedAt: matched.earliestStartTime,
-        leftAt: latestLeave,
-        durationMins,
-        exitStatus,
-        meetSessions: matched.sessions,
-        lastSyncedAt: new Date(),
-      });
-    }
-  });
 
   return updates;
 };

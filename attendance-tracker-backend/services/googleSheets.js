@@ -49,6 +49,20 @@ export const createBranchSheet = async (tokens, branchName) => {
   return response.data.spreadsheetId;
 };
 
+// Serialize sheet read-modify-write calls per spreadsheetId to prevent concurrent /join overwrites
+const sheetWriteQueues = new Map();
+const enqueueSheetWrite = (spreadsheetId, task) => {
+  const prev = sheetWriteQueues.get(spreadsheetId) || Promise.resolve();
+  const next = prev.catch(() => {}).then(task);
+  const cleanup = next.finally(() => {
+    if (sheetWriteQueues.get(spreadsheetId) === cleanup) {
+      sheetWriteQueues.delete(spreadsheetId);
+    }
+  });
+  sheetWriteQueues.set(spreadsheetId, cleanup);
+  return next;
+};
+
 /**
  * Mark a student as Present (P) in the sheet for a given date column.
  * Dynamically detects column positions (S.No, Student Name, Email, Group, College)
@@ -58,12 +72,12 @@ export const createBranchSheet = async (tokens, branchName) => {
  * @param {object} student - { fullName, email, group, college }
  * @param {string} classDate - e.g. "26/09/2026"
  */
-export const markStudentPresent = async (
+export const markStudentPresent = (
   tokens,
   spreadsheetId,
   student,
   classDate
-) => {
+) => enqueueSheetWrite(spreadsheetId, async () => {
   // Fix #5: fresh client per call
   const client = createOAuth2Client();
   client.setCredentials({
@@ -186,9 +200,10 @@ export const markStudentPresent = async (
     }
   }
 
-  // 5. Capture current join time
+  // 5. Capture current join time in IST
   const now = new Date();
   const joinTime = now.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -263,7 +278,7 @@ export const markStudentPresent = async (
     valueInputOption: "USER_ENTERED",
     resource: { values: rows },
   });
-};
+});
 
 /**
  * Export full class attendance records to a dedicated Google Sheet
