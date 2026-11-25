@@ -29,6 +29,7 @@ const YEAR_OPTIONS = [
 
 function Branches() {
   const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,6 +64,8 @@ function Branches() {
     } catch (err) {
       console.log(err);
       showToast("Could not load your branches. Please refresh.", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -262,12 +265,17 @@ function Branches() {
             />
           </div>
           <div className="text-xs font-semibold text-[var(--subtext)] px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] shrink-0 hidden sm:block">
-            {filteredBranches.length} {filteredBranches.length === 1 ? "Branch" : "Branches"}
+            {loading ? "Loading..." : `${filteredBranches.length} ${filteredBranches.length === 1 ? "Branch" : "Branches"}`}
           </div>
         </div>
 
         {/* BRANCH CARDS GRID */}
-        {filteredBranches.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-[var(--subtext)] text-sm">
+            <div className="w-8 h-8 border-3 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
+            <span>Loading branches...</span>
+          </div>
+        ) : filteredBranches.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--card)]/50 p-12 text-center">
             <div className="w-14 h-14 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center mx-auto mb-4">
               <Layers className="w-7 h-7" />
