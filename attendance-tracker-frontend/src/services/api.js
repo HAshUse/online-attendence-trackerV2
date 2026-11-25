@@ -9,7 +9,7 @@ const API = axios.create({
     import.meta.env.VITE_API_BASE_URL ||
     (isLocal
       ? "http://localhost:5000/api"
-      : "https://online-attendence-tracker-1.onrender.com/api")
+      : "https://attendance-tracker-backend-469h.onrender.com/api")
 });
 
 // 🔐 Attach token to EVERY request

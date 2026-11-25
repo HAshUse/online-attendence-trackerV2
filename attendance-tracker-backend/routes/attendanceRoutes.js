@@ -1,20 +1,24 @@
 import express from "express";
 import {
   markAttendance,
-  exportClassToGoogleSheet,
-  exportOverallToGoogleSheet,
   getClassAttendance,
-  exportAttendance,
   getAttendanceSummary,
   getGroupWiseAttendance,
-  exportOverallAttendanceExcel,
   getCollegeGroupWiseAttendance,
   getOverallAttendanceSummary,
   syncClassMeetTelemetry,
+} from "../controllers/attendanceController.js";
+import {
+  exportAttendance,
+  exportClassToGoogleSheet,
+  exportOverallAttendanceExcel,
+  exportOverallToGoogleSheet,
+  syncBranchRecordingsToGoogleSheet,
+} from "../controllers/exportController.js";
+import {
   aiPreviewCleanedAttendance,
   aiCleanAndDispatchAttendance,
-  syncBranchRecordingsToGoogleSheet,
-} from "../controllers/attendanceController.js";
+} from "../controllers/aiReportController.js";
 import protect from "../middleware/authMiddleware.js";
 
 const router = express.Router();

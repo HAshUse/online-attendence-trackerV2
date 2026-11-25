@@ -136,7 +136,7 @@ export const deleteBranch = async (req, res) => {
 
 export const getBranchById = async (req, res) => {
   try {
-    const branch = await Branch.findById(req.params.id);
+    const branch = await Branch.findOne({ _id: req.params.id, teacher: req.user._id });
 
     if (!branch) return res.status(404).json({ message: "Branch not found" });
 

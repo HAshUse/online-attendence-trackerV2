@@ -168,17 +168,6 @@ export const getBranchAnalytics = async (req, res) => {
       }).length;
     }
 
-    // Determine the distinct classes conducted for each college
-    const collegeClassesMap = {};
-    filteredAttendance.forEach((a) => {
-      if (!a.student || !a.class) return;
-      const col = (a.student.college || "Unknown").trim();
-      if (!collegeClassesMap[col]) {
-        collegeClassesMap[col] = new Set();
-      }
-      collegeClassesMap[col].add(a.class.toString());
-    });
-
     const studentMap = {};
     filteredAttendance.forEach((a) => {
       if (!a.student) return;
@@ -208,10 +197,7 @@ export const getBranchAnalytics = async (req, res) => {
 
     const studentAnalytics = Object.values(studentMap)
       .map((s) => {
-        const collegeName = (s.college || "Unknown").trim();
-        // Base attendance rate on classes scheduled/conducted for this student's college
-        const collegeClassesCount = collegeClassesMap[collegeName]?.size || 0;
-        const totalClassesForStudent = Math.max(s.attendedClasses, collegeClassesCount || filteredClassesCount || 1);
+        const totalClassesForStudent = filteredClassesCount || 1;
         const attendanceRate = Math.min(100, Math.round((s.attendedClasses / totalClassesForStudent) * 100));
 
         let tier = "Champion";
