@@ -32,6 +32,7 @@ router.put("/:id", protect, updateBranch);
 
 // delete
 router.delete("/delete/:id", protect, deleteBranch);
+router.delete("/:id", protect, deleteBranch);
 router.get("/:id", protect, getBranchById);
 
 export default router;
