@@ -40,6 +40,7 @@ function Navbar() {
   });
 
   const [hasToken, setHasToken] = useState(() => !!localStorage.getItem("token"));
+  const [hasAdminToken, setHasAdminToken] = useState(() => !!localStorage.getItem("adminToken"));
 
   const showToast = (message, type = "info", title = "") => {
     setToast({ message, type, title, id: Date.now() });
@@ -49,6 +50,7 @@ function Navbar() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     setHasToken(!!token);
+    setHasAdminToken(!!localStorage.getItem("adminToken"));
     try {
       setAuthTeacher(JSON.parse(localStorage.getItem("teacher")));
     } catch {
@@ -161,7 +163,7 @@ function Navbar() {
       {/* BRANDING */}
       <div
         className="flex items-center gap-3 min-w-0 cursor-pointer select-none group"
-        onClick={() => navigate(hasToken ? "/branches" : "/")}
+        onClick={() => navigate(hasToken ? "/branches" : hasAdminToken ? "/admin" : "/")}
         role="button"
         tabIndex={0}
       >
@@ -300,6 +302,13 @@ function Navbar() {
               </div>
             )}
           </div>
+        ) : hasAdminToken ? (
+          <button
+            onClick={() => navigate("/admin")}
+            className="h-9 px-3.5 rounded-xl bg-[var(--primary-light)] border border-[var(--primary)]/25 text-[var(--primary)] text-xs font-semibold cursor-pointer"
+          >
+            Admin
+          </button>
         ) : (
           <button
             onClick={() => navigate("/")}

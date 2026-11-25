@@ -59,4 +59,5 @@ test("core routes load without missing controller exports", () => {
   assert.ok(getRoutePaths(adminRoutes).includes("GET /overview"));
   assert.ok(getRoutePaths(adminRoutes).includes("GET /branches/:branchId/analytics"));
   assert.ok(getRoutePaths(adminRoutes).includes("GET /classes/:classId"));
+  assert.ok(getRoutePaths(adminRoutes).includes("DELETE /facilitators/:id"));
 });

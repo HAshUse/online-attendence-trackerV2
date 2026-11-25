@@ -15,6 +15,7 @@ import {
   Video,
   ArrowRight,
   Calendar,
+  Trash2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -33,6 +34,7 @@ function AdminDashboard() {
   const [selectedFacilitator, setSelectedFacilitator] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
+  const [deletingFacilitatorId, setDeletingFacilitatorId] = useState(null);
   const navigate = useNavigate();
 
   const fetchOverview = async (facId = selectedFacilitator, month = selectedMonth) => {
@@ -61,6 +63,24 @@ function AdminDashboard() {
     localStorage.removeItem("adminToken");
     localStorage.removeItem("adminUser");
     navigate("/admin/login");
+  };
+
+  const handleDeleteFacilitator = async (f) => {
+    const ok = window.confirm(
+      `Delete facilitator "${f.name}" (${f.email})?\nTheir account will be removed, while their branches and attendance records remain intact.`
+    );
+    if (!ok) return;
+
+    try {
+      setDeletingFacilitatorId(f._id);
+      await API.delete(`/admin/facilitators/${f._id}`);
+      if (selectedFacilitator === f._id) setSelectedFacilitator("");
+      await fetchOverview(selectedFacilitator === f._id ? "" : selectedFacilitator, selectedMonth);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to delete facilitator.");
+    } finally {
+      setDeletingFacilitatorId(null);
+    }
   };
 
   const kpis = data?.kpis || {};
@@ -360,16 +380,26 @@ function AdminDashboard() {
                         <td className="px-4 py-3 font-semibold">{f.classesCount}</td>
                         <td className="px-4 py-3 font-semibold">{f.totalAttendances}</td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => {
-                              setSelectedFacilitator(f._id);
-                              setActiveTab("branches");
-                            }}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:underline cursor-pointer"
-                          >
-                            <span>View Branches</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => {
+                                setSelectedFacilitator(f._id);
+                                setActiveTab("branches");
+                              }}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:underline cursor-pointer"
+                            >
+                              <span>View Branches</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFacilitator(f)}
+                              disabled={deletingFacilitatorId === f._id}
+                              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer disabled:opacity-50"
+                              title="Delete Facilitator"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -416,3 +416,17 @@ export const getAdminClassAttendance = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+/* DELETE /api/admin/facilitators/:id (deletes facilitator account only; branches remain intact) */
+export const deleteFacilitator = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Teacher.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ message: "Facilitator not found" });
+    }
+    res.json({ message: "Facilitator removed successfully", id });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
