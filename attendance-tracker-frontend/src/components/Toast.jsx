@@ -39,7 +39,9 @@ export default function Toast({
     }, interval);
 
     return () => clearInterval(timer);
-  }, [message, duration, onClose]);
+  // shortcut: onClose intentionally excluded — it's a stable setter passed inline; including it restarts the timer on every parent render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message, duration]);
 
   if (!message) return null;
 
