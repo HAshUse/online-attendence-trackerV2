@@ -34,11 +34,17 @@ API.interceptors.response.use(
 
       // 401 Unauthorized / Token Expiration
       if (status === 401) {
-        // Clear invalid auth data
-        localStorage.removeItem("token");
-        localStorage.removeItem("teacher");
-        localStorage.removeItem("googleStatus");
-        window.dispatchEvent(new Event("authChange")); // Navbar listens → redirects to login
+        // If this is a Google OAuth error (not a JWT/session error), don't log the user out.
+        // The backend sets isGoogleAuthError: true for Google permission failures.
+        const isGoogleAuthError = error.response.data?.isGoogleAuthError === true;
+
+        if (!isGoogleAuthError) {
+          // Only wipe session and redirect for real JWT expiry / missing token
+          localStorage.removeItem("token");
+          localStorage.removeItem("teacher");
+          localStorage.removeItem("googleStatus");
+          window.dispatchEvent(new Event("authChange")); // Navbar listens → redirects to login
+        }
 
         const isAuthMsg =
           !rawMsg ||
@@ -48,9 +54,9 @@ API.interceptors.response.use(
           rawMsg.toLowerCase().includes("token") ||
           rawMsg.toLowerCase().includes("jwt") ||
           rawMsg.toLowerCase().includes("unauthorized") ||
-          rawMsg.toLowerCase().includes("auth");
+          (rawMsg.toLowerCase().includes("auth") && !isGoogleAuthError);
 
-        if (isAuthMsg) {
+        if (isAuthMsg && !isGoogleAuthError) {
           rawMsg = "Your session has expired. Please log in again to continue.";
         }
       } else if (status === 403) {
