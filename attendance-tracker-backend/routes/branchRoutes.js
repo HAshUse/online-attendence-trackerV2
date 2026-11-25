@@ -19,7 +19,8 @@ import {
 
 const router = express.Router();
 
-// create
+// create — support both POST /branches and POST /branches/create
+router.post("/", protect, createBranch);
 router.post("/create", protect, createBranch);
 
 // list teacher branches
