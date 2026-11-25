@@ -95,11 +95,13 @@ export const getBranchAnalytics = async (req, res) => {
 
     /* ================= 5. MONTH-WISE ATTENDANCE ANALYSIS ================= */
     const monthMap = {};
+    const classMonthMap = {};
 
     // Map classes to months
     branchClasses.forEach((cls) => {
       const rawDate = cls.classDate || (cls.createdAt ? cls.createdAt.toISOString().slice(0, 10) : "");
       const monthKey = rawDate.slice(0, 7) || new Date().toISOString().slice(0, 7);
+      classMonthMap[cls._id.toString()] = monthKey;
       if (!monthMap[monthKey]) {
         monthMap[monthKey] = {
           month: monthKey,
@@ -115,10 +117,13 @@ export const getBranchAnalytics = async (req, res) => {
       monthMap[monthKey].classesCount++;
     });
 
-    // Map attendance to months
+    // Map attendance to months using its class's month (keeps class & attendance aligned across IST/UTC boundaries)
     attendance.forEach((a) => {
       const rawDate = a.createdAt ? a.createdAt.toISOString().slice(0, 10) : "";
-      const monthKey = rawDate.slice(0, 7) || new Date().toISOString().slice(0, 7);
+      const monthKey =
+        (a.class && classMonthMap[a.class.toString()]) ||
+        rawDate.slice(0, 7) ||
+        new Date().toISOString().slice(0, 7);
       if (!monthMap[monthKey]) {
         monthMap[monthKey] = {
           month: monthKey,
@@ -160,7 +165,7 @@ export const getBranchAnalytics = async (req, res) => {
 
     if (month) {
       filteredAttendance = attendance.filter(
-        (a) => (a.createdAt ? a.createdAt.toISOString().slice(0, 7) : "") === month
+        (a) => (a.class && classMonthMap[a.class.toString()]) === month
       );
       filteredClassesCount = branchClasses.filter((c) => {
         const raw = c.classDate || (c.createdAt ? c.createdAt.toISOString().slice(0, 10) : "");

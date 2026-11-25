@@ -58,6 +58,9 @@ export const createClass = async (req, res) => {
     if (classDate && startTime && endTime) {
       startDateTime = parseISTDateTime(classDate, startTime);
       endDateTime = parseISTDateTime(classDate, endTime);
+      if (endDateTime <= startDateTime) {
+        endDateTime = new Date(endDateTime.getTime() + 24 * 60 * 60 * 1000);
+      }
     } else if (expiresAt) {
       startDateTime = new Date();
       endDateTime = new Date(expiresAt);
@@ -230,6 +233,9 @@ export const updateClass = async (req, res) => {
     if (classDate && startTime && endTime) {
       startDateTime = parseISTDateTime(classDate, startTime);
       endDateTime = parseISTDateTime(classDate, endTime);
+      if (endDateTime <= startDateTime) {
+        endDateTime = new Date(endDateTime.getTime() + 24 * 60 * 60 * 1000);
+      }
       classDoc.classDate = classDate;
       classDoc.startTime = startTime;
       classDoc.endTime = endTime;

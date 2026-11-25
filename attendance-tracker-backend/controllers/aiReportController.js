@@ -3,6 +3,7 @@ import Attendance from "../models/Attendance.js";
 import Teacher from "../models/Teacher.js";
 import { cleanAttendanceWithLLM } from "../services/llmAttendanceCleaner.js";
 import { sendStakeholderExcelEmail } from "../services/mailer.js";
+import { handleGoogleApiError } from "./attendanceController.js";
 import XLSX from "xlsx";
 
 /**
@@ -187,7 +188,6 @@ export const aiCleanAndDispatchAttendance = async (req, res) => {
 
     return res.status(400).json({ message: "Invalid dispatch target specified." });
   } catch (err) {
-    console.error("AI clean and dispatch error:", err);
-    res.status(500).json({ message: err.message || "Failed to clean and dispatch attendance" });
+    return handleGoogleApiError(err, req.user._id, res, "Failed to clean and dispatch attendance");
   }
 };

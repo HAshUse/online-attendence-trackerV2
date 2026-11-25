@@ -42,27 +42,34 @@ export const fetchConferenceRecordsForMeeting = async (teacher, meetLink) => {
   let records = [];
 
   try {
-    const res = await meet.conferenceRecords.list({ pageSize: 50 });
-    const allRecords = res.data?.conferenceRecords || [];
     const spaceCache = new Map();
+    let pageToken = undefined;
 
-    for (const r of allRecords) {
-      if (!r.space) continue;
-      let spaceCode = spaceCache.get(r.space);
+    for (let page = 0; page < 5; page++) {
+      const res = await meet.conferenceRecords.list({ pageSize: 100, pageToken });
+      const allRecords = res.data?.conferenceRecords || [];
 
-      if (spaceCode === undefined) {
-        try {
-          const s = await meet.spaces.get({ name: r.space });
-          spaceCode = (s.data?.meetingCode || "").toLowerCase().trim();
-          spaceCache.set(r.space, spaceCode);
-        } catch {
-          spaceCache.set(r.space, "");
+      for (const r of allRecords) {
+        if (!r.space) continue;
+        let spaceCode = spaceCache.get(r.space);
+
+        if (spaceCode === undefined) {
+          try {
+            const s = await meet.spaces.get({ name: r.space });
+            spaceCode = (s.data?.meetingCode || "").toLowerCase().trim();
+            spaceCache.set(r.space, spaceCode);
+          } catch {
+            spaceCache.set(r.space, "");
+          }
+        }
+
+        if (spaceCode && spaceCode === code) {
+          records.push(r);
         }
       }
 
-      if (spaceCode && spaceCode === code) {
-        records.push(r);
-      }
+      pageToken = res.data?.nextPageToken;
+      if (!pageToken || records.length > 0) break;
     }
   } catch (err) {
     const msg = `${err?.message || ""} ${err?.response?.data?.error || ""}`.toLowerCase();

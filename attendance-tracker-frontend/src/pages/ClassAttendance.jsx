@@ -155,7 +155,7 @@ function ClassAttendance() {
       const res = await API.get(`/attendance/export/${id}`, { responseType: "blob" });
       downloadFile(new Blob([res.data]), "attendance.xlsx");
     } catch (err) {
-      console.log(err);
+      showToast(err.response?.data?.message || "No attendance records to export.", "error");
     }
   };
 
@@ -165,7 +165,7 @@ function ClassAttendance() {
       const res = await API.get(`/attendance/export/${id}?college=${selectedCollege}`, { responseType: "blob" });
       downloadFile(new Blob([res.data]), `${selectedCollege}_attendance.xlsx`);
     } catch (err) {
-      console.log(err);
+      showToast(err.response?.data?.message || "No attendance records to export.", "error");
     }
   };
 
@@ -307,7 +307,7 @@ function ClassAttendance() {
       const res = await API.post(`/attendance/export-google-sheet/${id}`);
       if (res.data?.sheetUrl) {
         setCreatedSheetUrl(res.data.sheetUrl);
-        showToast("Google Sheet generated successfully!", "success", res.data.sheetUrl);
+        showToast("Google Sheet generated successfully!", "success", "Google Sheet", res.data.sheetUrl);
         if (newTab && !newTab.closed) {
           newTab.location.href = res.data.sheetUrl;
         } else {

@@ -267,15 +267,13 @@ function CreateClass() {
     }
 
     const startDateTime = new Date(`${form.classDate}T${form.startTime}:00+05:30`);
-    const endDateTime = new Date(`${form.classDate}T${form.endTime}:00+05:30`);
+    let endDateTime = new Date(`${form.classDate}T${form.endTime}:00+05:30`);
+    if (endDateTime <= startDateTime) {
+      endDateTime = new Date(endDateTime.getTime() + 24 * 60 * 60 * 1000);
+    }
 
     if (endDateTime <= new Date()) {
       showToast("The class end time has already passed! Please select a future time or date.", "warning", "Time Expired");
-      return;
-    }
-
-    if (startDateTime >= endDateTime) {
-      showToast("Class end time must be after the start time.", "warning", "Invalid Timing");
       return;
     }
 
