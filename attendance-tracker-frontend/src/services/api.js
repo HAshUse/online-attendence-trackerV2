@@ -12,10 +12,11 @@ const API = axios.create({
       : "https://attendance-tracker-backend-469h.onrender.com/api")
 });
 
-// 🔐 Attach token to EVERY request
+// 🔐 Attach token to EVERY request (adminToken for /admin/*, teacher token otherwise)
 API.interceptors.request.use(
   (req) => {
-    const token = localStorage.getItem("token");
+    const isAdminReq = req.url?.startsWith("/admin");
+    const token = localStorage.getItem(isAdminReq ? "adminToken" : "token");
     if (token) {
       req.headers.Authorization = `Bearer ${token}`;
     }
@@ -37,8 +38,13 @@ API.interceptors.response.use(
         // If this is a Google OAuth error (not a JWT/session error), don't log the user out.
         // The backend sets isGoogleAuthError: true for Google permission failures.
         const isGoogleAuthError = error.response.data?.isGoogleAuthError === true;
+        const isAdminReq = error.config?.url?.startsWith("/admin");
 
-        if (!isGoogleAuthError) {
+        if (isAdminReq) {
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("adminUser");
+          window.dispatchEvent(new Event("adminAuthChange"));
+        } else if (!isGoogleAuthError) {
           // Only wipe session and redirect for real JWT expiry / missing token
           localStorage.removeItem("token");
           localStorage.removeItem("teacher");

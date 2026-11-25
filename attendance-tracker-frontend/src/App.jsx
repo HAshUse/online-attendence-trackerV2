@@ -12,6 +12,10 @@ import BranchDashboard from "./pages/BranchDashboard";
 import Branches from "./pages/Branches";
 import Colleges from "./pages/Colleges";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminBranchView from "./pages/AdminBranchView";
 
 function App() {
   return (
@@ -25,6 +29,13 @@ function App() {
           {/* Public Auth Routes */}
           <Route path="/" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+
+          {/* Read-Only Admin Control Tower */}
+          <Route element={<AdminProtectedRoute />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/branches/:branchId" element={<AdminBranchView />} />
+          </Route>
 
           {/* Protected Teacher Dashboard Routes (Requires Login) */}
           <Route element={<ProtectedRoute />}>

@@ -144,7 +144,7 @@ function Login() {
             </button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-[var(--border)] text-center">
+          <div className="mt-6 pt-5 border-t border-[var(--border)] text-center space-y-2">
             <p className="text-xs text-[var(--subtext)]">
               Don't have an account yet?{" "}
               <Link
@@ -152,6 +152,12 @@ function Login() {
                 className="font-bold text-[var(--primary)] hover:underline ml-1"
               >
                 Create Account
+              </Link>
+            </p>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              Program Lead?{" "}
+              <Link to="/admin/login" className="font-semibold text-[var(--subtext)] hover:text-[var(--primary)]">
+                Admin Observer Portal →
               </Link>
             </p>
           </div>

@@ -9,6 +9,7 @@ import branchRoutes from "./routes/branchRoutes.js";
 import branchAnalyticsRoutes from "./routes/branchAnalyticsRoutes.js";
 import googleAuthRoutes from "./routes/googleAuthRoutes.js";
 import collegeRoutes from "./routes/collegeRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 connectDB();
 
@@ -32,6 +33,7 @@ app.use("/api/branches", branchRoutes);
 app.use("/api/branches", branchAnalyticsRoutes);
 app.use("/api/auth/google", googleAuthRoutes);
 app.use("/api/colleges", collegeRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Fallback for non-API paths (e.g. /branches?google=success accessed directly on backend)
 app.use((req, res, next) => {

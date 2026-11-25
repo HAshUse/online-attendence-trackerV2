@@ -8,6 +8,7 @@ import classRoutes from "../routes/classRoutes.js";
 import attendanceRoutes from "../routes/attendanceRoutes.js";
 import teacherRoutes from "../routes/teacherRoutes.js";
 import branchAnalyticsRoutes from "../routes/branchAnalyticsRoutes.js";
+import adminRoutes from "../routes/adminRoutes.js";
 
 const getRoutePaths = (router) =>
   router.stack
@@ -54,4 +55,8 @@ test("core routes load without missing controller exports", () => {
   assert.ok(getRoutePaths(attendanceRoutes).includes("GET /overall/export/:branchId"));
   assert.ok(getRoutePaths(teacherRoutes).includes("POST /login"));
   assert.ok(getRoutePaths(branchAnalyticsRoutes).includes("GET /:branchId/analytics"));
+  assert.ok(getRoutePaths(adminRoutes).includes("POST /login"));
+  assert.ok(getRoutePaths(adminRoutes).includes("GET /overview"));
+  assert.ok(getRoutePaths(adminRoutes).includes("GET /branches/:branchId/analytics"));
+  assert.ok(getRoutePaths(adminRoutes).includes("GET /classes/:classId"));
 });
