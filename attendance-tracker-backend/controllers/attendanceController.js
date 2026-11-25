@@ -728,6 +728,17 @@ export const getOverallAttendanceSummary = async (req, res) => {
     const attendance = await Attendance.find({ class: { $in: classIds } })
       .populate("student", "fullName email group college");
 
+    // Map each college to the set of classes conducted for that college
+    const collegeClassesMap = {};
+    attendance.forEach((record) => {
+      if (!record.student || !record.class) return;
+      const col = (record.student.college || "Unknown").trim();
+      if (!collegeClassesMap[col]) {
+        collegeClassesMap[col] = new Set();
+      }
+      collegeClassesMap[col].add(record.class.toString());
+    });
+
     const map = {};
 
     attendance.forEach((record) => {
@@ -750,19 +761,24 @@ export const getOverallAttendanceSummary = async (req, res) => {
     });
 
     const result = Object.values(map)
-      .map((s) => ({
-        fullName: s.fullName,
-        email: s.email,
-        group: s.group,
-        college: s.college,
-        totalClasses,
-        totalClassesJoined: s.classes.size,
-        percentage:
-          totalClasses === 0
-            ? 0
-            : Math.round((s.classes.size / totalClasses) * 100),
-        classes: [...s.classes],
-      }))
+      .map((s) => {
+        const collegeName = (s.college || "Unknown").trim();
+        const collegeClassesCount = collegeClassesMap[collegeName]?.size || 0;
+        const studentTotalClasses = Math.max(s.classes.size, collegeClassesCount || totalClasses || 1);
+        return {
+          fullName: s.fullName,
+          email: s.email,
+          group: s.group,
+          college: s.college,
+          totalClasses: studentTotalClasses,
+          totalClassesJoined: s.classes.size,
+          percentage:
+            studentTotalClasses === 0
+              ? 0
+              : Math.min(100, Math.round((s.classes.size / studentTotalClasses) * 100)),
+          classes: [...s.classes],
+        };
+      })
       .sort((a, b) => (a.college || "").localeCompare(b.college || ""));
 
     res.status(200).json(result);
@@ -891,10 +907,19 @@ const buildBranchMatrixRegister = async (
 
   // 3. Build student map
   const map = {};
+  const collegeClassesMap = {};
 
   attendanceRecords.forEach((record) => {
     const s = record.student;
     if (!s) return;
+
+    if (record.class) {
+      const col = (s.college || "Unknown").trim();
+      if (!collegeClassesMap[col]) {
+        collegeClassesMap[col] = new Set();
+      }
+      collegeClassesMap[col].add(record.class.toString());
+    }
 
     if (selectedCollege && s.college !== selectedCollege) return;
 
@@ -946,11 +971,11 @@ const buildBranchMatrixRegister = async (
       return "A";
     });
 
-    const absentCount = totalClasses - presentCount;
-    const pct =
-      totalClasses === 0
-        ? "0%"
-        : Math.round((presentCount / totalClasses) * 100) + "%";
+    const collegeName = (student.college || "").trim();
+    const collegeTotal = collegeClassesMap[collegeName]?.size || totalClasses;
+    const studentTotal = Math.max(presentCount, collegeTotal || 1);
+    const absentCount = Math.max(0, studentTotal - presentCount);
+    const pct = Math.min(100, Math.round((presentCount / studentTotal) * 100)) + "%";
 
     matrixRows.push([
       idx + 1,

@@ -168,6 +168,17 @@ export const getBranchAnalytics = async (req, res) => {
       }).length;
     }
 
+    // Determine the distinct classes conducted for each college
+    const collegeClassesMap = {};
+    filteredAttendance.forEach((a) => {
+      if (!a.student || !a.class) return;
+      const col = (a.student.college || "Unknown").trim();
+      if (!collegeClassesMap[col]) {
+        collegeClassesMap[col] = new Set();
+      }
+      collegeClassesMap[col].add(a.class.toString());
+    });
+
     const studentMap = {};
     filteredAttendance.forEach((a) => {
       if (!a.student) return;
@@ -195,22 +206,26 @@ export const getBranchAnalytics = async (req, res) => {
       }
     });
 
-    const effectiveTotalClasses = Math.max(1, filteredClassesCount);
     const studentAnalytics = Object.values(studentMap)
       .map((s) => {
-        const attendanceRate = Math.min(100, Math.round((s.attendedClasses / effectiveTotalClasses) * 100));
+        const collegeName = (s.college || "Unknown").trim();
+        // Base attendance rate on classes scheduled/conducted for this student's college
+        const collegeClassesCount = collegeClassesMap[collegeName]?.size || 0;
+        const totalClassesForStudent = Math.max(s.attendedClasses, collegeClassesCount || filteredClassesCount || 1);
+        const attendanceRate = Math.min(100, Math.round((s.attendedClasses / totalClassesForStudent) * 100));
+
         let tier = "Champion";
         if (attendanceRate < 50) tier = "Needs Attention";
         else if (attendanceRate < 80) tier = "Regular";
 
         return {
           ...s,
-          totalClasses: filteredClassesCount,
+          totalClasses: totalClassesForStudent,
           attendanceRate,
           tier,
         };
       })
-      .sort((a, b) => b.attendedClasses - a.attendedClasses || b.attendanceRate - a.attendanceRate);
+      .sort((a, b) => b.attendanceRate - a.attendanceRate || b.attendedClasses - a.attendedClasses);
 
     /* ================= 7. BRANCH-WISE COMPARISON ANALYTICS ================= */
     const allTeacherClassIds = allTeacherClasses.map((c) => c._id);
