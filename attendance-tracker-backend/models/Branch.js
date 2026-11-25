@@ -17,6 +17,7 @@ const branchSchema = new mongoose.Schema(
     },
     // Google Sheets
     sheetId: { type: String, default: null },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

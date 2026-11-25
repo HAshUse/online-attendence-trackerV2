@@ -66,7 +66,7 @@ const DEFAULT_BRANCHES = [
 /* GET MY BRANCHES */
 export const getMyBranches = async (req, res) => {
   try {
-    let branches = await Branch.find({ teacher: req.user._id })
+    let branches = await Branch.find({ teacher: req.user._id, deletedAt: null })
       .sort({ createdAt: 1 });
 
     // Auto-seed default branches if teacher has no branches
@@ -136,7 +136,7 @@ export const deleteBranch = async (req, res) => {
 
 export const getBranchById = async (req, res) => {
   try {
-    const branch = await Branch.findOne({ _id: req.params.id, teacher: req.user._id });
+    const branch = await Branch.findOne({ _id: req.params.id, teacher: req.user._id, deletedAt: null });
 
     if (!branch) return res.status(404).json({ message: "Branch not found" });
 

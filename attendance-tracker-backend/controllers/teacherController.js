@@ -67,7 +67,7 @@ export const loginTeacher = async (req, res) => {
 
     // 2. Check teacher
     const teacher = await Teacher.findOne({ email });
-    if (!teacher) {
+    if (!teacher || teacher.deletedAt) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 

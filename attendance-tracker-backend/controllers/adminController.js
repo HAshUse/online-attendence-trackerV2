@@ -5,6 +5,28 @@ import Class from "../models/Class.js";
 import Attendance from "../models/Attendance.js";
 import { getSheetUrl } from "../services/googleSheets.js";
 
+const RECYCLE_RETENTION_DAYS = 14;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const cascadeDeleteFacilitator = async (teacherId) => {
+  const classes = await Class.find({ teacher: teacherId }).select("_id");
+  const classIds = classes.map((c) => c._id);
+  if (classIds.length > 0) {
+    await Attendance.deleteMany({ class: { $in: classIds } });
+  }
+  await Class.deleteMany({ teacher: teacherId });
+  await Branch.deleteMany({ teacher: teacherId });
+  await Teacher.findByIdAndDelete(teacherId);
+};
+
+const purgeExpiredRecycleBin = async () => {
+  const cutoff = new Date(Date.now() - RECYCLE_RETENTION_DAYS * MS_PER_DAY);
+  const expired = await Teacher.find({ deletedAt: { $ne: null, $lte: cutoff } }).select("_id");
+  for (const t of expired) {
+    await cascadeDeleteFacilitator(t._id);
+  }
+};
+
 const formatMonthLabel = (yyyyMm) => {
   if (!yyyyMm || yyyyMm.length < 7) return yyyyMm;
   const [y, m] = yyyyMm.split("-");
@@ -50,21 +72,31 @@ export const adminLogin = async (req, res) => {
 /* GET /api/admin/overview?month=YYYY-MM&facilitatorId=... */
 export const getAdminOverview = async (req, res) => {
   try {
+    await purgeExpiredRecycleBin();
     const { month, facilitatorId } = req.query;
 
-    const [teachers, branches, allClasses] = await Promise.all([
-      Teacher.find().select("name email googleEmail googleAccessToken googleRefreshToken createdAt"),
-      Branch.find().populate("teacher", "name email googleEmail").sort({ createdAt: -1 }),
+    const [teachers, branches, allClasses, recycleBinCount] = await Promise.all([
+      Teacher.find({ deletedAt: null }).select("name email googleEmail googleAccessToken googleRefreshToken createdAt"),
+      Branch.find({ deletedAt: null }).populate("teacher", "name email googleEmail").sort({ createdAt: -1 }),
       Class.find().select("className subject branch teacher classDate recordingUrl createdAt"),
+      Teacher.countDocuments({ deletedAt: { $ne: null } }),
     ]);
+
+    const activeBranchIds = new Set(branches.map((b) => b._id.toString()));
+    const activeTeacherIds = new Set(teachers.map((t) => t._id.toString()));
+    const activeClasses = allClasses.filter(
+      (c) =>
+        (!c.branch || activeBranchIds.has(c.branch.toString())) &&
+        (!c.teacher || activeTeacherIds.has(c.teacher.toString()))
+    );
 
     const filteredBranches = facilitatorId
       ? branches.filter((b) => b.teacher?._id?.toString() === facilitatorId)
       : branches;
 
     let scopedClasses = facilitatorId
-      ? allClasses.filter((c) => c.teacher?.toString() === facilitatorId)
-      : allClasses;
+      ? activeClasses.filter((c) => c.teacher?.toString() === facilitatorId)
+      : activeClasses;
 
     if (month) {
       scopedClasses = scopedClasses.filter((c) => {
@@ -200,6 +232,7 @@ export const getAdminOverview = async (req, res) => {
         totalAttendances: attendance.length,
         orgAttendanceRate,
         topCollege,
+        recycleBinCount,
       },
       dailyTrend,
       facilitators: facilitatorList,
@@ -417,15 +450,78 @@ export const getAdminClassAttendance = async (req, res) => {
   }
 };
 
-/* DELETE /api/admin/facilitators/:id (deletes facilitator account only; branches remain intact) */
+/* DELETE /api/admin/facilitators/:id (soft-deletes facilitator + all their branches into 14-day recycle bin) */
 export const deleteFacilitator = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await Teacher.findByIdAndDelete(id);
-    if (!deleted) {
+    const now = new Date();
+    const teacher = await Teacher.findByIdAndUpdate(id, { $set: { deletedAt: now } }, { new: true });
+    if (!teacher) {
       return res.status(404).json({ message: "Facilitator not found" });
     }
-    res.json({ message: "Facilitator removed successfully", id });
+    await Branch.updateMany({ teacher: id }, { $set: { deletedAt: now } });
+    res.json({ message: "Facilitator and branches moved to recycle bin (auto-deletes in 14 days)", id });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/* GET /api/admin/recycle-bin */
+export const getRecycleBin = async (req, res) => {
+  try {
+    await purgeExpiredRecycleBin();
+    const deletedTeachers = await Teacher.find({ deletedAt: { $ne: null } })
+      .select("name email deletedAt")
+      .sort({ deletedAt: -1 });
+
+    const items = await Promise.all(
+      deletedTeachers.map(async (t) => {
+        const branches = await Branch.find({ teacher: t._id }).select("name year");
+        const ageDays = Math.floor((Date.now() - new Date(t.deletedAt).getTime()) / MS_PER_DAY);
+        const daysRemaining = Math.max(0, RECYCLE_RETENTION_DAYS - ageDays);
+        return {
+          _id: t._id,
+          name: t.name,
+          email: t.email,
+          deletedAt: t.deletedAt,
+          daysRemaining,
+          branchesCount: branches.length,
+          branchNames: branches.map((b) => b.name),
+        };
+      })
+    );
+
+    res.json({ retentionDays: RECYCLE_RETENTION_DAYS, items });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/* POST /api/admin/recycle-bin/:id/restore */
+export const restoreFacilitator = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const teacher = await Teacher.findByIdAndUpdate(id, { $set: { deletedAt: null } }, { new: true });
+    if (!teacher) {
+      return res.status(404).json({ message: "Facilitator not found" });
+    }
+    await Branch.updateMany({ teacher: id }, { $set: { deletedAt: null } });
+    res.json({ message: "Facilitator and branches restored", id });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/* DELETE /api/admin/recycle-bin/:id (permanent delete from DB) */
+export const permanentDeleteFacilitator = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const teacher = await Teacher.findById(id);
+    if (!teacher) {
+      return res.status(404).json({ message: "Facilitator not found" });
+    }
+    await cascadeDeleteFacilitator(id);
+    res.json({ message: "Facilitator and all related data permanently deleted", id });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

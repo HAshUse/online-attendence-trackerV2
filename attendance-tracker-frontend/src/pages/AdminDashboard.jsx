@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Calendar,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -30,11 +31,13 @@ import {
 function AdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview"); // "overview" | "branches"
+  const [activeTab, setActiveTab] = useState("overview"); // "overview" | "branches" | "recycle"
   const [selectedFacilitator, setSelectedFacilitator] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
   const [deletingFacilitatorId, setDeletingFacilitatorId] = useState(null);
+  const [recycleItems, setRecycleItems] = useState([]);
+  const [recycleLoading, setRecycleLoading] = useState(false);
   const navigate = useNavigate();
 
   const fetchOverview = async (facId = selectedFacilitator, month = selectedMonth) => {
@@ -65,9 +68,25 @@ function AdminDashboard() {
     navigate("/admin/login");
   };
 
+  const fetchRecycleBin = async () => {
+    try {
+      setRecycleLoading(true);
+      const res = await API.get("/admin/recycle-bin");
+      setRecycleItems(res.data?.items || []);
+    } catch {
+      setRecycleItems([]);
+    } finally {
+      setRecycleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "recycle") fetchRecycleBin();
+  }, [activeTab]);
+
   const handleDeleteFacilitator = async (f) => {
     const ok = window.confirm(
-      `Delete facilitator "${f.name}" (${f.email})?\nTheir account will be removed, while their branches and attendance records remain intact.`
+      `Move facilitator "${f.name}" and all ${f.branchesCount} of their branch(es) to the Recycle Bin?\nThey will be permanently deleted after 14 days.`
     );
     if (!ok) return;
 
@@ -77,7 +96,36 @@ function AdminDashboard() {
       if (selectedFacilitator === f._id) setSelectedFacilitator("");
       await fetchOverview(selectedFacilitator === f._id ? "" : selectedFacilitator, selectedMonth);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete facilitator.");
+      alert(err?.response?.data?.message || "Failed to move facilitator to recycle bin.");
+    } finally {
+      setDeletingFacilitatorId(null);
+    }
+  };
+
+  const handleRestoreFacilitator = async (item) => {
+    try {
+      setDeletingFacilitatorId(item._id);
+      await API.post(`/admin/recycle-bin/${item._id}/restore`);
+      await Promise.all([fetchRecycleBin(), fetchOverview()]);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to restore facilitator.");
+    } finally {
+      setDeletingFacilitatorId(null);
+    }
+  };
+
+  const handlePermanentDelete = async (item) => {
+    const ok = window.confirm(
+      `Permanently delete "${item.name}" and all ${item.branchesCount} branch(es), classes, and attendance records from the database? This cannot be undone.`
+    );
+    if (!ok) return;
+
+    try {
+      setDeletingFacilitatorId(item._id);
+      await API.delete(`/admin/recycle-bin/${item._id}`);
+      await Promise.all([fetchRecycleBin(), fetchOverview()]);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to permanently delete facilitator.");
     } finally {
       setDeletingFacilitatorId(null);
     }
@@ -252,6 +300,17 @@ function AdminDashboard() {
             }`}
           >
             All Branches Explorer ({branches.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("recycle")}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === "recycle"
+                ? "bg-rose-500 text-white shadow-sm"
+                : "bg-[var(--card)] border border-[var(--border)] text-[var(--subtext)] hover:text-[var(--text)]"
+            }`}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Recycle Bin ({kpis.recycleBinCount || 0})</span>
           </button>
         </div>
 
@@ -500,6 +559,88 @@ function AdminDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: RECYCLE BIN */}
+        {activeTab === "recycle" && (
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-sm)]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-heading)]">
+                  Recycle Bin (14-Day Auto-Purge)
+                </h3>
+                <p className="text-xs text-[var(--subtext)]">
+                  Deleted facilitators and all of their branches are held here for 14 days before permanent removal.
+                </p>
+              </div>
+            </div>
+
+            {recycleLoading ? (
+              <div className="py-10 text-center text-xs text-[var(--subtext)]">
+                Loading recycle bin...
+              </div>
+            ) : recycleItems.length === 0 ? (
+              <div className="py-10 text-center text-xs text-[var(--subtext)] border border-dashed border-[var(--border)] rounded-xl">
+                Recycle bin is empty.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+                <table className="w-full min-w-[650px] border-collapse text-left">
+                  <thead>
+                    <tr className="bg-[var(--primary-light)] text-[var(--primary)] text-xs font-bold uppercase tracking-wider">
+                      <th className="px-4 py-3">Facilitator</th>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Branches</th>
+                      <th className="px-4 py-3">Auto-Purge In</th>
+                      <th className="px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border)] text-xs sm:text-sm">
+                    {recycleItems.map((item) => (
+                      <tr key={item._id} className="hover:bg-[var(--bg-secondary)]">
+                        <td className="px-4 py-3 font-bold text-[var(--text-heading)]">{item.name}</td>
+                        <td className="px-4 py-3 text-[var(--subtext)]">{item.email}</td>
+                        <td className="px-4 py-3">
+                          <span className="font-semibold">{item.branchesCount}</span>
+                          {item.branchNames?.length > 0 && (
+                            <span className="text-[11px] text-[var(--subtext)] ml-1.5">
+                              ({item.branchNames.slice(0, 2).join(", ")}
+                              {item.branchNames.length > 2 ? ", ..." : ""})
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-400">
+                            {item.daysRemaining} {item.daysRemaining === 1 ? "day" : "days"} left
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleRestoreFacilitator(item)}
+                              disabled={deletingFacilitatorId === item._id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 text-xs font-semibold cursor-pointer disabled:opacity-50"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Restore</span>
+                            </button>
+                            <button
+                              onClick={() => handlePermanentDelete(item)}
+                              disabled={deletingFacilitatorId === item._id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 text-xs font-semibold cursor-pointer disabled:opacity-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete Forever</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

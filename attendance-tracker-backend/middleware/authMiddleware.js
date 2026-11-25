@@ -20,8 +20,8 @@ const protect = async (req, res, next) => {
 
     req.user = await Teacher.findById(decoded.id).select("-password");
 
-    if (!req.user) {
-      return res.status(401).json({ message: "Teacher account not found. Please log in again." });
+    if (!req.user || req.user.deletedAt) {
+      return res.status(401).json({ message: "Teacher account not found or deactivated. Please log in again." });
     }
 
     next();
