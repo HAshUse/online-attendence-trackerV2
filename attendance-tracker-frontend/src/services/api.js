@@ -28,7 +28,18 @@ API.interceptors.request.use(
 // 🔄 Intercept responses to handle authentication & sanitize error messages
 API.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config;
+    if (
+      config &&
+      !config._retried &&
+      (!error.response || error.response.status === 503)
+    ) {
+      config._retried = true;
+      await new Promise((r) => setTimeout(r, 1500));
+      return API(config);
+    }
+
     if (error.response) {
       const status = error.response.status;
       let rawMsg = error.response.data?.message || "";
@@ -84,8 +95,8 @@ API.interceptors.response.use(
       }
       error.response.data.message = rawMsg;
     } else if (error.request) {
-      // Network failure / Server unreachable
-      const networkMsg = "Unable to connect to the server. Please check your internet connection.";
+      // Network failure / Server unreachable or 503 CORS block during Render wake-up
+      const networkMsg = "Server is waking up or unreachable. Please wait a few seconds and try again.";
       error.message = networkMsg;
       if (!error.response) {
         error.response = { data: { message: networkMsg }, status: 0 };
